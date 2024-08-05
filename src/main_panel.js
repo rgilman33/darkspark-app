@@ -50,7 +50,7 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
   const [tooltipPosition, setTooltipPosition] = useState({ left: 0, top: 0 });
   const [contextMenu, setContextMenu] = useState(null);
 
-  const [minimap_scrollbar_pos, setMinimapScrollbarPos] = useState({'left_perc':0, 'width_perc':0});
+  const [minimap_scrollbar_pos, setMinimapScrollbarPos] = useState({'left_perc':0, 'width_perc':0, 'visible':false});
 
   // remember this part of the code gets executed all the time. For one-time things on init, put in useEffect below
 
@@ -161,9 +161,12 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
         let cz = boundingBox.min.z + scene_h_height
 
         const minimap_h_width = minimap_camera.right / zoom;
-        let minimap_background_left = cx - minimap_h_width // in local coords, where does left of minimap background cut off
-        let minimap_background_right = cx + minimap_h_width // in local coords, where does left of minimap background cut off
+        let minimap_background_left = cx - minimap_h_width // in local coords, where does left of minimap background cut off, on initial load
+        let minimap_background_right = cx + minimap_h_width // in local coords, where does left of minimap background cut off, on initial load
 
+        // const minimap_h_height = minimap_camera.top / zoom;
+        // let base_height_proportion = scene_h_height / minimap_h_height
+        // console.log("base height proportion", base_height_proportion.toFixed(2))
 
         // shift minimap background. relevent for long models. should shift / scroll like vscode minimap
         let scene_max_x = boundingBox.max.x
@@ -178,16 +181,24 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
         
         if (minimap_background_left>0) { // if minimap fits entirely within width, no need to scroll widthwise
           cx = cx + minimap_background_shift
+
+          let scrollbar_width_perc = ((minimap_h_width*2) / scene_max_x)*100
+          // scrollbar_width_perc = parseInt(scrollbar_width_perc)
+          let scrollbar_left = utils.interp((main_camera_x-main_camera_h_width), [0, scene_max_x-main_camera_h_width*2], [0, (100-scrollbar_width_perc)])
+          // scrollbar_left = parseInt(scrollbar_left)
+          setMinimapScrollbarPos({
+            'left_perc':scrollbar_left,
+            'width_perc':scrollbar_width_perc,
+            'display':'block',
+          })
+        } else {
+          setMinimapScrollbarPos({
+            'left_perc':0,
+            'width_perc':0,
+            'display':'none',
+          })
         }
 
-        let scrollbar_width_perc = ((main_camera_h_width*2) / scene_max_x)*100
-        // scrollbar_width_perc = parseInt(scrollbar_width_perc)
-        let scrollbar_left = utils.interp((main_camera_x-main_camera_h_width), [0, scene_max_x-main_camera_h_width*2], [0, (100-scrollbar_width_perc)])
-        // scrollbar_left = parseInt(scrollbar_left)
-        setMinimapScrollbarPos({
-          'left_perc':scrollbar_left,
-          'width_perc':scrollbar_width_perc
-        })
 
         // set
         minimap_camera.position.set(cx, MINIMAP_CAMERA_HEIGHT, cz);
@@ -574,15 +585,24 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
         "mod_outputs", "input_group_ix",
         'n_ops', 'depth', 'input_shapes', 'output_shapes', 'is_output_global', "sparkflow", "params"]
 
+  let minimap_total_height = 120
+  let minimap_scrollbar_height = 6 // does not include outline
+  let minimap_height = minimap_scrollbar_pos.display=="none" ? minimap_total_height : (minimap_total_height-minimap_scrollbar_height)
+
   return <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
 
-            <div style={{ zIndex: 2, width: '100%', height: '120px', backgroundColor:'grey', 
-                    position: 'absolute', top:'10px', left:'10px'}}>
-              <div style={{ backgroundColor:'white', width: '100%', height:'4px', position:'relative', outline: '1px solid lightgrey' }}>
+            <div style={{ zIndex: 2, width: '100%', height: `${minimap_total_height}px`, backgroundColor:'grey', 
+                    position: 'absolute', top:'0px', left:'0px'
+                    }}>
+              <div style={{ backgroundColor:'white', width: '100%', height: `${minimap_scrollbar_height}px`, 
+                            position:'relative', 
+                            display: `${minimap_scrollbar_pos.display}`,
+                            }}>
                   <div style={{ backgroundColor:'lightgrey', width: `${minimap_scrollbar_pos.width_perc}%`, height:'100%', position:'absolute', 
-                                left: `${minimap_scrollbar_pos.left_perc}%`, outline:'1px solid lightgrey'}}></div>
+                                left: `${minimap_scrollbar_pos.left_perc}%`,
+                                }}></div>
               </div>
-              <div ref={minimapMountRef} style={{ backgroundColor:'lightgrey', width: '100%', height:'116px', position:'relative'}}></div>
+              <div ref={minimapMountRef} style={{ backgroundColor:'lightgrey', width: '100%', height:`${minimap_height}px`, position:'relative'}}></div>
 
             </div>
 
