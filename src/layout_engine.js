@@ -68,124 +68,129 @@ export default function recompute_layout() {
 
         //////
         // Keep extension / branch nodes one behind their target downstream node, as that is their purpose
-        function get_node(nid, ns) {
-            return ns.filter(n => n.node_id==nid)[0]
-        }
         op.children.filter(o=>["extension", "elbow"].includes(o.node_type)).forEach(branch_node => {
             if (!branch_node.pre_elbow) {
-                let branch_dns = branch_node.dn_ids.map(nid => get_node(nid, op.children))
+                let branch_dns = branch_node.dn_ids.map(nid => utils.get_node(nid, op.children))
                 let min_x = Math.min(...branch_dns.map(o => o.x_relative))
                 branch_node.x_relative = min_x - 1
                 branch_node.history_js.push("moving extension to stay one less than dn")
             } else { // is pre elbow
-                let un = get_node(branch_node.uns[0], op.children) // will only be one
+                let un = utils.get_node(branch_node.uns[0], op.children) // will only be one
                 branch_node.x_relative = un.x_relative + 1
                 branch_node.history_js.push("moving pre-elbow to stay one more than un") 
             }
-        })
+        }) 
+        // TODO do this each time we nudge a node forward. It should bring it's preceding elbow / ext with it
+        // so that other nodes can also respond
 
 
         ////////////////////////////////////////////////
         // Relative y
 
-        // important that these always go in proper order
 
-        op.children.sort((a,b)=>{
-            return a.draw_order - b.draw_order
+        // compile rows lookup
+        let rows = {}
+        op.children.forEach(c => {
+            if (!(c.draw_order_row in rows)) {
+                rows[c.draw_order_row] = {
+                    "nodes":[],
+                    "draw_order_row":c.draw_order_row,
+                }
+            };
+            rows[c.draw_order_row].nodes.push(c)
         })
+        // calc information for each row
+        for (let rid in rows) {
+            let row = rows[rid]
+            row.nodes.sort((a,b) => a.x_relative - b.x_relative)
+            row.starts_at_x = row.nodes[0].x_relative
+            let last_op = row.nodes[row.nodes.length-1]
+            let dns = utils.get_downstream_nodes(last_op, op.children) // all the way till terminating node, ie not just row itself
+            let dn_max_x = Math.max(...dns.map(dn => dn.x_relative))
+
+            let until = last_op.x_relative + last_op.w
+            row.ends_at_x = Math.max(until, dn_max_x-1) 
+
+            row.y_relative = row.nodes[0].y_relative // all have same y_relative
+        }
+        // Set y_relative for row and all nodes in row. should only increment up
+        function set_row_y(row, new_y_value) {
+            row.nodes.forEach(o => o.y_relative = new_y_value)
+            row.y_relative = new_y_value
+        }
+
+        ////////
+        let row_queue = [] // not actually using this as a queue, ie not ever adding back to the end, just cycling through
+        Object.keys(rows).forEach(rid => row_queue.push(rows[rid])) // rows dict in list form
+        row_queue.sort((a,b)=>{
+            return a.draw_order_row - b.draw_order_row
+        })
+
         let occupancy = new Array(3000).fill(-1)
-        let occupancy_ids = new Array(3000).fill("none") // for debugging only
-
-        let queue = []
-        op.children.forEach(c => queue.push(c))
-        let counter = 0
-        while (queue.length > 0) {
-            
-            // moving other ops up in response to this op
-            let c = queue.shift() // take at ix 0
-            
-            // update occupancy w child box
-            let c_top = c.y_relative + c.h
-
-            let block_until = c.x_relative+c.w
-
-            if (c.is_last_in_line) { // normal elbow
-                let terminates_at = op.children.filter(o => o.node_id==c.terminates_at)[0]
-                let end_of_flat_line = terminates_at.x_relative - 1
-                block_until = Math.max(block_until, end_of_flat_line)
+        function block_occupancy(from, until, value) {
+            for (let i=from; i<=until; i++) { // includes 'until'
+                occupancy[i] = Math.max(occupancy[i], value) // why can't just block at y directly, when will this come in below?
             }
+        }
 
-            for (let i=c.x_relative; i<=block_until; i++) {
-                if (c_top > occupancy[i]) {
-                    occupancy[i] = Math.max(occupancy[i], c_top)
-                    occupancy_ids[i] = "child box " + utils.nice_name(c)
+        while (row_queue.length > 0) {
+            
+            // moving other rows up in response to this row
+            let row = row_queue.shift() // take at ix 0 and shift rest one to the left
+            
+            // block occupancy for row line
+            block_occupancy(row.starts_at_x, row.ends_at_x, row.y_relative)
+
+            // Block occ for all expanded ops in the row
+            row.nodes.forEach(o => {
+                if (!o.collapsed) { // expanded box within the row
+                    let top = o.y_relative + o.h
+                    let right = o.x_relative + o.w
+                    block_occupancy(o.x_relative, right, top)
                 }
-            }
-
-
-            let rows_to_shift_with_inputs = {}
-			if (!c.collapsed) { // child c is expanded, bring its input nodes up to its frame of reference
-				let c_sub_inputs = c.children.filter(cc => cc.is_input)
-				c_sub_inputs.forEach(cc => {  
-					// c_input in the frame of reference of grandparent op, rather than parent c
-					// ie now the children of c are also in c's frame of reference
-					cc.x_relative_grandparent = c.x_relative + cc.x_relative
-					cc.y_relative_grandparent = c.y_relative + cc.y_relative
-				})
-				c_sub_inputs.sort((a,b) => a.y_relative_grandparent - b.y_relative_grandparent) 
-                c_sub_inputs.forEach(input_node => {
-                    // let un = get_upstream_nodes(input_node, op.children) // the upstream op back in the current peer op group
-                    let un = utils.get_upstream_nodes(input_node, queue) // the upstream op back in the current peer op group
-                    if (un.length==1) {
-                        rows_to_shift_with_inputs[un[0].row_counter] = input_node.y_relative_grandparent
-                    }
-                })
-                for (let rid in rows_to_shift_with_inputs) {
-                    let input_y_relative = rows_to_shift_with_inputs[rid]
-                    // let ops_in_row = op.children.filter(o => o.row_counter==rid)
-                    let ops_in_row = queue.filter(o => o.row_counter==rid)
-                    if (ops_in_row.length>0) {
-                        if (ops_in_row[0].y_relative < input_y_relative) {
-                            ops_in_row.forEach(o => {
-                                o.y_relative = input_y_relative
-                            })
-                        }
-                    }
-                }
-			}
-
-            // nested by row id
-            let rows = {}
-            queue.forEach(o => {
-                if (!(o.row_counter in rows)) rows[o.row_counter] = [];
-                rows[o.row_counter].push(o)
             })
 
-            // TODO these rows can be compiled once for the peer group, not for each child separately
 
-            for (let rid in rows) {
-                let r = rows[rid]
-                r.sort((a,b) => a.x_relative - b.x_relative)
-                let from = r[0].x_relative
-                let last_op = r[r.length-1]
-                let dns = utils.get_downstream_nodes(last_op, op.children)
-                let dn_max_x = Math.max(...dns.map(dn => dn.x_relative))
+            // Shifting input rows up
+            let queue_row_ids = row_queue.map(r => r.draw_order_row)
 
-                let until = last_op.x_relative + last_op.w
-                until = Math.max(until, dn_max_x-1)
+            row.nodes.forEach(o => {
+                if (!o.collapsed) { // expanded box within the row. bring its input nodes up to its frame of reference
+                    let c_sub_inputs = o.children.filter(cc => cc.is_input)
+                    c_sub_inputs.forEach(cc => { // y_relative_grandparent is the subops y_relative value in the current frame of reference
+                        cc.x_relative_grandparent = o.x_relative + cc.x_relative
+                        cc.y_relative_grandparent = o.y_relative + cc.y_relative
+                    })
+                    c_sub_inputs.sort((a,b) => a.y_relative_grandparent - b.y_relative_grandparent) 
+                    c_sub_inputs.forEach(input_node => {
+                        let uns = utils.get_upstream_nodes(input_node, op.children) // the upstream op back in the current peer op group
+                        if (uns.length==1) {
+                            let id_of_incoming_row = uns[0].draw_order_row
+                            let incoming_row = rows[id_of_incoming_row]
 
-                let occ = Math.max(...occupancy.slice(from, until+1))
-                let row_overlap = occ - r[0].y_relative +1 // all have same y
-                if (row_overlap > 0) { 
-                    r.forEach(o => o.y_relative += row_overlap)
+                            if (incoming_row.y_relative < input_node.y_relative_grandparent) { 
+                                if (queue_row_ids.includes(id_of_incoming_row)) { // if the incoming row is not yet fixed
+                                    
+                                    // if the incoming row is below the target height of the input node of the expanded box
+                                    set_row_y(incoming_row, input_node.y_relative_grandparent)
+                                }
+                            }
+                        }
+                    })
                 }
-            }
+            })
+                
 
-            counter += 1
-            if (counter > 1e4) {
-                console.log("too many iters on the y shift stack")
-                return
-            }
+
+
+            row_queue.forEach(row => {
+                let occ = Math.max(...occupancy.slice(row.starts_at_x, row.ends_at_x+1))
+                let row_overlap = occ - row.y_relative +1 // all have same y
+                if (row_overlap > 0) { 
+                    set_row_y(row, row.y_relative+row_overlap) // incrementing upwards
+                }
+                
+            })
     
         }
 

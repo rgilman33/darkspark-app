@@ -43,12 +43,14 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 const minimap_renderer = new THREE.WebGLRenderer({ antialias: true });
 
 
-const MainPanel = ({ filters, setDropdownValue, setDepthValues }) => {
+const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats }) => {
   const mountRef = useRef(null);
   const minimapMountRef = useRef(null);
   const [hoveredObject, setHoveredObject] = useState(null);
   const [tooltipPosition, setTooltipPosition] = useState({ left: 0, top: 0 });
   const [contextMenu, setContextMenu] = useState(null);
+
+  const [minimap_scrollbar_pos, setMinimapScrollbarPos] = useState({'left_perc':0, 'width_perc':0});
 
   // remember this part of the code gets executed all the time. For one-time things on init, put in useEffect below
 
@@ -162,6 +164,7 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues }) => {
         let minimap_background_left = cx - minimap_h_width // in local coords, where does left of minimap background cut off
         let minimap_background_right = cx + minimap_h_width // in local coords, where does left of minimap background cut off
 
+
         // shift minimap background. relevent for long models. should shift / scroll like vscode minimap
         let scene_max_x = boundingBox.max.x
         let shift_to_align_right = scene_max_x - minimap_background_right
@@ -169,11 +172,22 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues }) => {
 
         let main_camera_x = camera.position.x // main camera
         let main_camera_h_width = camera.right / camera.zoom
-        let b = main_camera_h_width * 1.5 // scalar gives buffer, at 1.0 will align perfectly, but nicer to have buffer
+        let b = main_camera_h_width * 1 //1.5 // scalar gives buffer, at 1.0 will align perfectly, but nicer to have buffer
         let minimap_background_shift = utils.interp(main_camera_x, [b, scene_max_x-b], 
                                                                       [shift_to_align_left, shift_to_align_right])
+        
+        if (minimap_background_left>0) { // if minimap fits entirely within width, no need to scroll widthwise
+          cx = cx + minimap_background_shift
+        }
 
-        cx = cx + minimap_background_shift
+        let scrollbar_width_perc = ((main_camera_h_width*2) / scene_max_x)*100
+        // scrollbar_width_perc = parseInt(scrollbar_width_perc)
+        let scrollbar_left = utils.interp((main_camera_x-main_camera_h_width), [0, scene_max_x-main_camera_h_width*2], [0, (100-scrollbar_width_perc)])
+        // scrollbar_left = parseInt(scrollbar_left)
+        setMinimapScrollbarPos({
+          'left_perc':scrollbar_left,
+          'width_perc':scrollbar_width_perc
+        })
 
         // set
         minimap_camera.position.set(cx, MINIMAP_CAMERA_HEIGHT, cz);
@@ -206,6 +220,8 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues }) => {
       let cz = minimap_window.position.z
       update_main_camera_position(cx, cz)
     }
+
+
     
     ///////////////////////////
     // Start animation loop
@@ -497,6 +513,28 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues }) => {
                 let default_zoom = 20
                 camera.zoom = default_zoom
                 camera.updateProjectionMatrix()
+
+                //////////////////
+                //
+                let total_params = 0
+                let total_latency = 0
+                function accumulate_stats(op) {
+                  if ('n_params' in op) {
+                    total_params += op.n_params 
+                  }
+                  if ('latency' in op) {
+                    if (op.node_type == "function")
+                    total_latency += op.latency 
+                  }
+                  op.children.forEach(c => accumulate_stats(c))
+                }
+                accumulate_stats(nn)
+                let overviewStats = {
+                  'total_params':total_params,
+                  'total_latency':total_latency
+                }
+                setOverviewStats(overviewStats)
+                console.log(overviewStats)
             })
     // end load new nn
     } else if (filters.dropdownValue) { 
@@ -532,13 +570,22 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues }) => {
     // }
   }
 
-  let tooltip_attrs_list = ['node_id', "dist_from_end_global", "respath_dist", "draw_order", "mod_outputs", "input_group_ix",
-        'n_ops', 'depth', 'input_shapes', 'output_shapes', 'is_output_global', "sparkflow"]
+  let tooltip_attrs_list = ['node_id', "dist_from_end_global", "respath_dist", "row_counter", "draw_order_row",
+        "mod_outputs", "input_group_ix",
+        'n_ops', 'depth', 'input_shapes', 'output_shapes', 'is_output_global', "sparkflow", "params"]
 
   return <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
 
-            <div ref={minimapMountRef} style={{ zIndex: 2, width: '100%', height: '120px', backgroundColor:'grey', 
-                  position: 'absolute', top:'10px', left:'10px'}}/>
+            <div style={{ zIndex: 2, width: '100%', height: '120px', backgroundColor:'grey', 
+                    position: 'absolute', top:'10px', left:'10px'}}>
+              <div style={{ backgroundColor:'white', width: '100%', height:'4px', position:'relative', outline: '1px solid lightgrey' }}>
+                  <div style={{ backgroundColor:'lightgrey', width: `${minimap_scrollbar_pos.width_perc}%`, height:'100%', position:'absolute', 
+                                left: `${minimap_scrollbar_pos.left_perc}%`, outline:'1px solid lightgrey'}}></div>
+              </div>
+              <div ref={minimapMountRef} style={{ backgroundColor:'lightgrey', width: '100%', height:'116px', position:'relative'}}></div>
+
+            </div>
+
 
             <div ref={mountRef} style={{ zIndex: 1, width: '100%', flex: 1 }}/>
 
@@ -583,6 +630,7 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues }) => {
               <MenuItem onClick={handleClose}>Option 2</MenuItem>
               <MenuItem onClick={handleClose}>Option 3</MenuItem>
             </Menu>
+
 
           </div>;
 };

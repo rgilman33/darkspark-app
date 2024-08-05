@@ -222,7 +222,6 @@ export function draw_nn() {
 
         while (stack.length > 0) {
             let current_op = stack.pop();
-            //let downstream_nodes = get_downstream_nodes(current_op, nodes); // this will be taking too much time. Need to move lookup to JS.
             let downstream_nodes = get_ns(current_op, "dns").filter(n => n.is_currently_visible_node)
             
             downstream_nodes.forEach(dn => {
@@ -368,9 +367,14 @@ export function draw_nn() {
         if (sparkflow) {
             let normalized_sparkflow = normalize_sparkflow(sparkflow) // zero to one relative to all edges currently drawn
             let linewidth = utils.interp(normalized_sparkflow, [0,1], [1,zoom_max_linewidth]) // when zoomed out, don't really want more than 3, when zoomed in up to five or so is helpful
-            let brightness_factor = utils.interp(normalized_sparkflow, [0, 1], [3,.8]) // darker for more weight
+            let brightness_factor = utils.interp(normalized_sparkflow, [0, 1], [4,.2]) // darker for more weight
+            // let brightness_factor = utils.interp(normalized_sparkflow, [0, 1], [3,.8]) // lighter for when paired w linewidth
             let color = utils.get_edge_color(brightness_factor)
-            return [linewidth, color]
+            // return [linewidth, color]
+            // return [2, color] 
+            return [2, color] 
+            // most browsers I've looked at don't support this linewidth spec. Keeping one so can develop in way that most ppl will see.
+            // but they seem to look wider on other browsers? so putting as two here 
         } else {
             return [1, utils.get_edge_color(1)]
         }

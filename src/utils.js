@@ -106,7 +106,9 @@ export function get_edge_pts(n0, n1) {
         pts = get_pts_for_flat_line(pt1, pt2)
     } else { // has vertical part
         if (x_dist > 1) { // elbow. Compound curve
-            if ((n0.respath_dist == n1.respath_dist) || n0.is_last_in_line){ // normal elbow
+            // if ((n0.respath_dist == n1.respath_dist) || n0.is_last_in_line){ // normal elbow TODO this needs work. Mark it in layout_engine. 
+                if ( n0.is_last_in_line){ // normal elbow 
+                // Shouldn't this only be is_last_in_line now? 
                 let elbow = {x:n1.x-1, y:0, z:n0.y}
                 let flat_pts = get_pts_for_flat_line(pt1, elbow)
                 let curve_pts = get_curve_pts(elbow, pt2, CURVE_N_PTS-2)
@@ -143,7 +145,7 @@ export function get_node_color(n) {
             return new THREE.Color("blue")
         } else if (n.is_global_input) {
             return new THREE.Color("orange")
-        } else if (n.is_input && !n.has_been_used) {
+        } else if (n.is_input && n.dns.length==0) {
             return new THREE.Color("black")
         } else if (n.is_output_global) {
             return new THREE.Color("purple")
@@ -220,42 +222,62 @@ export function get_text(op) {
 	const div = document.createElement( 'div' );
 	div.className = 'label';
     let text = ''
-    if (DEBUG) {
-        text=nice_name(op)
-
-        text += ("<br>row "+op.row_counter)
-        // text += ("<br>order "+op.draw_order)
-        // // text += ("<br>total_dns "+op.total_dns)
-        // text += ("<br>end "+op.dist_from_end_global)    
-        // text += ("<br>res "+ op.respath_dist)
-
-        // if (op.dist_from_start_global) text += ("<br>start "+op.dist_from_start_global)    
-        // if (op.dist_from_start_originator_count) text += ("<br>orig count "+op.dist_from_start_originator_count)
-
-        // if (op.is_tensor_node) {
-        //     text += ("<br>id "+String(op.tensor_id).slice(op.tensor_id.length-5, op.tensor_id.length))
-        // }
-
-    } else if ((op.node_type=="function" || op.node_type=="module") && !("collapsed_ops" in op)) {
-        text = op.name.slice(0, 10)
-        if (op.collapsed_ops){
-            op.collapsed_ops.forEach(collapsed_op_name => {
-                text += ("<br>"+collapsed_op_name)
-            })
-        }
-        // text += ("<br>"+op.node_id.slice(op.node_id.length-10, op.node_id.length))
-        // text += ("<br>in "+op.input_shapes)
-        // text += ("<br>row "+op.row_counter)
-        // text += ("<br>respath "+ op.respath_dist)
-        // text += ("<br>order "+op.draw_order)    
-    } 
-    
-    if (["mod_out", "fn_out"].includes(op.node_type)){
-        text += ("<br> " + op.input_shapes)
+    let color_lookup = {
+        "unknown": "grey",
+        "features": "green",
+        "spatial":"blue",
+        "batch":"purple"
     }
+    // if (op.is_tensor_node){
+    if (["mod_out", "fn_out"].includes(op.node_type) || op.is_global_input){
+        if ("dim_types" in op) {
+            let span = document.createElement('span');
+            span.innerText = "("
+            div.appendChild(span)
+            op.shape.forEach((s,i) => {
+                let dim_type = op.dim_types[i]
+                let color = color_lookup[dim_type]
+
+                let span = document.createElement('span');
+                span.style.color = color;
+                if (i < (op.shape.length-1)) s += ', '
+                span.innerText = s; 
+                div.appendChild(span);
+            })
+            let end_span = document.createElement('span');
+            end_span.innerText = ")"
+            div.appendChild(end_span)
+        } else {
+            text = op.input_shapes[0]
+            div.innerHTML = text
+        }
+    } else if (["function", "module"].includes(op.node_type)) {
+        text = op.name.slice(0, 10)
+        if ("fn_metadata" in op) {
+            if ("kernel_size" in op.fn_metadata) {
+                let k = op.fn_metadata.kernel_size
+                k = k.includes(",") ? k : "("+k+"x"+k+")"
+                k = k.replace(", ", "x")
+                text += (" "+k)
+            }
+            if ("groups" in op.fn_metadata) {
+                if (parseInt(op.fn_metadata.groups)>1) {
+                    text += ("<br>groups: "+op.fn_metadata.groups)
+                }
+            }
+        }
+        if ("action_along_dim_type" in op) {
+            text += (" ("+op.action_along_dim_type+")")
+        }
+        // if (op.collapsed_ops){
+        //     op.collapsed_ops.forEach(collapsed_op_name => {
+        //         text += ("<br>"+collapsed_op_name)
+        //     })
+        // }
+        div.innerHTML = text
+    } 
 
     div.style.display = 'none' // init to none, will show when close enough
-	div.innerHTML = text
 	div.style.backgroundColor = 'transparent';
 
 	const label = new CSS2DObject( div );
@@ -474,7 +496,7 @@ export function nice_name(op) {
 
 export function update_labels() {
     globals.ops_of_visible_nodes.forEach(op => {
-        if ((globals.camera.zoom > 40 || (globals.camera.zoom > 20 && (op.node_type=="function" || op.node_type=="module"))) 
+        if ((globals.camera.zoom > 30 || (globals.camera.zoom > 20 && (op.node_type=="function" || op.node_type=="module"))) 
                 && op.should_draw 
             ) {
             if (op.node_label != undefined) {
@@ -606,6 +628,10 @@ export function get_downstream_nodes(base_op, ops) {
 }
 export function get_upstream_nodes(base_op, ops) {
     return ops.filter(o => base_op.uns.includes(o.node_id))
+}
+
+export function get_node(nid, ns) {
+    return ns.filter(n => n.node_id==nid)[0]
 }
 
 export function collapse_to_depth(level) {
