@@ -42,6 +42,10 @@ let raycaster = new THREE.Raycaster();
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 const minimap_renderer = new THREE.WebGLRenderer({ antialias: true });
 
+//
+let minimap_total_height = 120
+let minimap_scrollbar_height = 6 // does not include outline
+
 
 const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats }) => {
   const mountRef = useRef(null);
@@ -50,7 +54,7 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
   const [tooltipPosition, setTooltipPosition] = useState({ left: 0, top: 0 });
   const [contextMenu, setContextMenu] = useState(null);
 
-  const [minimap_scrollbar_pos, setMinimapScrollbarPos] = useState({'left_perc':0, 'width_perc':0, 'visible':false});
+  const [minimap_scrollbar_pos, setMinimapScrollbarPos] = useState({'left_perc':0, 'width_perc':0, 'display':'none', 'minimap_height':minimap_total_height});
 
   // remember this part of the code gets executed all the time. For one-time things on init, put in useEffect below
 
@@ -186,16 +190,20 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
           // scrollbar_width_perc = parseInt(scrollbar_width_perc)
           let scrollbar_left = utils.interp((main_camera_x-main_camera_h_width), [0, scene_max_x-main_camera_h_width*2], [0, (100-scrollbar_width_perc)])
           // scrollbar_left = parseInt(scrollbar_left)
+
           setMinimapScrollbarPos({
             'left_perc':scrollbar_left,
             'width_perc':scrollbar_width_perc,
             'display':'block',
+            'minimap_height':minimap_total_height-minimap_scrollbar_height
           })
+
         } else {
           setMinimapScrollbarPos({
             'left_perc':0,
             'width_perc':0,
             'display':'none',
+            'minimap_height':minimap_total_height
           })
         }
 
@@ -580,14 +588,11 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
     //   console.log("single click")
     // }
   }
-  
+
   let tooltip_attrs_list = ['node_id', "dist_from_end_global", "respath_dist", "row_counter", "draw_order_row",
         "mod_outputs", "input_group_ix",
         'n_ops', 'depth', 'input_shapes', 'output_shapes', 'is_output_global', "sparkflow", "params"]
 
-  let minimap_total_height = 120
-  let minimap_scrollbar_height = 6 // does not include outline
-  let minimap_height = minimap_scrollbar_pos.display=="none" ? minimap_total_height : (minimap_total_height-minimap_scrollbar_height)
 
   return <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
 
@@ -602,7 +607,7 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
                                 left: `${minimap_scrollbar_pos.left_perc}%`,
                                 }}></div>
               </div>
-              <div ref={minimapMountRef} style={{ backgroundColor:'lightgrey', width: '100%', height:`${minimap_height}px`, position:'relative'}}></div>
+              <div ref={minimapMountRef} style={{ backgroundColor:'lightgrey', width: '100%', height:`${minimap_scrollbar_pos.minimap_height}px`, position:'relative'}}></div>
 
             </div>
 
