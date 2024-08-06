@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { TextField, Autocomplete } from '@mui/material';
+import * as utils from './utils'
 
 const Sidebar = ({ onFilterChange, setDropdownValue, dropdownValue, depthValues, overviewStats }) => {
     const [modelOptions, setModelOptions] = useState({});
@@ -20,7 +21,7 @@ const Sidebar = ({ onFilterChange, setDropdownValue, dropdownValue, depthValues,
         .then(response => response.json())
         .then(data => {
             // let default_model = Object.keys(data)[0]
-            let default_model = "efficientnet_b0" //"maskrcnn_resnet50_fpn" 
+            let default_model = "stable-diffusion-v1-4" //"maskrcnn_resnet50_fpn" 
             console.log("json loaded", default_model)
 
             setSelectedModel(default_model) // display name of model
@@ -32,18 +33,6 @@ const Sidebar = ({ onFilterChange, setDropdownValue, dropdownValue, depthValues,
         });
 
     }, []);
-
-    function formatNumParams(num) {
-        if (num >= 1e9) {
-          return (num / 1e9).toFixed(1) + 'b';
-        } else if (num >= 1e6) {
-          return (num / 1e6).toFixed(1) + 'm';
-        } else if (num >= 1e3) {
-          return (num / 1e3).toFixed(1) + 'k';
-        } else {
-          return num.toFixed(1).toString();
-        }
-      }
 
     return (
         <div>
@@ -102,7 +91,7 @@ const Sidebar = ({ onFilterChange, setDropdownValue, dropdownValue, depthValues,
                 {/* First Column */}
                 <div style={{ flex: 1, textAlign: 'center' }}>
                 <div style={{ fontSize: '12px', color: 'gray' }}>n_params</div>
-                <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{formatNumParams(overviewStats.total_params)}</div>
+                <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{utils.formatNumParams(overviewStats.total_params)}</div>
                 </div>
                 
                 {/* Second Column */}
@@ -113,8 +102,8 @@ const Sidebar = ({ onFilterChange, setDropdownValue, dropdownValue, depthValues,
                 
                 {/* Third Column */}
                 <div style={{ flex: 1, textAlign: 'center' }}>
-                <div style={{ fontSize: '12px', color: 'gray' }}>something</div>
-                <div style={{ fontSize: '24px', fontWeight: 'bold' }}>333</div>
+                <div style={{ fontSize: '12px', color: 'gray' }}>gpu memory</div>
+                <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{utils.formatMemorySize(overviewStats.max_memory_allocated)}</div>
                 </div>
             </div>
         </div>

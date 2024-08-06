@@ -4,6 +4,7 @@ import * as TWEEN from '@tweenjs/tween.js';
 import * as utils from './utils';
 import { scene, globals } from "./utils"
 import { TWEEN_EASE, TWEEN_MS, CLICKABLE_LAYER, get_sphere_group, white_color, plane_outline_color, get_ns, CURVE_N_PTS } from './utils';
+import { act } from 'react';
 
 ///////////////////////////////
 // Draw nn
@@ -28,7 +29,6 @@ export function draw_nn() {
 
     globals.ops_of_visible_planes = []
     globals.ops_of_visible_nodes = []
-
     function draw_op(op) {
         if (op.collapsed) { // Nodes
             if (op.mesh == undefined) { // if newly appearing node, create the mesh at the position
@@ -211,9 +211,84 @@ export function draw_nn() {
     }
     nn.children.sort((a,b) => {return a.draw_order - b.draw_order})
     draw_op(nn)
-    
-    console.timeEnd("draw nodes")
 
+    // ////////////////// color by op type
+    // let op_color_lookup = {}
+    // let feature_detector_ops = ["conv2d", "linear", "scaled_dot_product_attention"]
+    // feature_detector_ops.forEach(n => {
+    //     op_color_lookup[n] = new THREE.Color('green')
+    // })
+    // let norm_ops = ["layer_norm", "group_norm"]
+    // norm_ops.forEach(n => {
+    //     op_color_lookup[n] = new THREE.Color('lightblue')
+    // })
+    // let activation_ops = ["silu", "relu", "gelu"]
+    // activation_ops.forEach(n => {
+    //     op_color_lookup[n] = new THREE.Color('brown')
+    // })
+    // let arithmetic_ops = ["add", "mul", "div"]
+    // arithmetic_ops.forEach(n => {
+    //     op_color_lookup[n] = new THREE.Color('black')
+    // })
+
+    // function op_type_to_color(op) {
+    //     if (op.node_type=="module") {
+    //         return new THREE.Color('red')
+    //     } else if (op.is_tensor_node) {
+    //         return new THREE.Color('blue')
+    //     } else {
+    //         if (op.name in op_color_lookup) {
+    //             return op_color_lookup[op.name]
+    //         } else {
+    //             return new THREE.Color('grey')
+    //         }
+    //     }
+    // }
+    // globals.ops_of_visible_nodes.forEach(op => {
+    //     let node = op.mesh.children[0]
+    //     node.material.color = op_type_to_color(op)
+    // })
+
+    ///////////////////////
+    // color by continuous
+    let colorby_values = []
+    // let colorby_attr = "latency"
+    // let colorby_attr = "max_memory_allocated"
+    // let colorby_attr = "incremental_memory_usage"
+    let colorby_attr = "n_params"
+    globals.ops_of_visible_nodes.forEach(op => {
+        if (colorby_attr in op) {
+            colorby_values.push(op[colorby_attr])
+        }
+    })
+    function value_adjuster(v) {
+        // return Math.sqrt(s) 
+        return v 
+    }
+    colorby_values = colorby_values.map(s => {
+        return value_adjuster(s)
+    })
+    let _max = Math.max(...colorby_values)
+    let _min = Math.min(...colorby_values)
+    function normalize_colorby(v) {
+        let normalized = (value_adjuster(v) - _min) / (_max - _min)
+        return normalized
+    }
+    function colorby_continuous(op) {
+        if (colorby_attr in op) {
+            let l = normalize_colorby(op[colorby_attr])
+            return new THREE.Color(l, .3, .3)
+        } else {
+            return new THREE.Color('grey')
+        }
+    }
+    globals.ops_of_visible_nodes.forEach(op => {
+        let node = op.mesh.children[0]
+        node.material.color = colorby_continuous(op)
+    })
+
+
+    console.timeEnd("draw nodes")
     
     let edges = []
     let already_added = {}

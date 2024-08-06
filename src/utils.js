@@ -677,3 +677,32 @@ export function mark_all_mods_of_family_as_collapsed(op, family, is_collapsed, t
     }
     op.children.forEach(c => mark_all_mods_of_family_as_collapsed(c, family, is_collapsed, to_remove_container))
 }
+
+
+// stats, tooltips number formatting
+export function formatNumParams(num) {
+    if (num >= 1e9) {
+      return (num / 1e9).toFixed(1) + 'b';
+    } else if (num >= 1e6) {
+      return (num / 1e6).toFixed(1) + 'm';
+    } else if (num >= 1e3) {
+      return (num / 1e3).toFixed(1) + 'k';
+    } else {
+      return num.toFixed(1).toString();
+    }
+}
+export function formatMemorySize(numBytes) {
+    const ONE_KB = 1024;
+    const ONE_MB = 1024 * ONE_KB;
+    const ONE_GB = 1024 * ONE_MB;
+
+    if (numBytes >= ONE_GB) {
+        return (numBytes / ONE_GB).toFixed(1) + ' GB';
+    } else if (numBytes >= ONE_MB) {
+        return (numBytes / ONE_MB).toFixed(1) + ' MB';
+    } else if (numBytes >= ONE_KB) {
+        return (numBytes / ONE_KB).toFixed(1) + ' KB';
+    } else {
+        return numBytes.toFixed(1) + ' bytes';
+    }
+}

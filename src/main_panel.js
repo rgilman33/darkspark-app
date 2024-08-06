@@ -195,7 +195,7 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
             'left_perc':scrollbar_left,
             'width_perc':scrollbar_width_perc,
             'display':'block',
-            'minimap_height':minimap_total_height-minimap_scrollbar_height
+            'minimap_height':(minimap_total_height-minimap_scrollbar_height)
           })
 
         } else {
@@ -509,6 +509,7 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
                     }
                     i += 1
                 }
+                default_depth = 2 //TODO UNDO just for sd dev
 
                 console.log("default depth ", default_depth)
                 // init at collapsed depth
@@ -537,6 +538,7 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
                 //
                 let total_params = 0
                 let total_latency = 0
+                let max_memory_allocated = 0
                 function accumulate_stats(op) {
                   if ('n_params' in op) {
                     total_params += op.n_params 
@@ -545,12 +547,17 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
                     if (op.node_type == "function")
                     total_latency += op.latency 
                   }
+                  if ('max_memory_allocated' in op) {
+                    if (op.node_type == "function")
+                    max_memory_allocated = Math.max(max_memory_allocated, op.max_memory_allocated)
+                  }
                   op.children.forEach(c => accumulate_stats(c))
                 }
                 accumulate_stats(nn)
                 let overviewStats = {
                   'total_params':total_params,
-                  'total_latency':total_latency
+                  'total_latency':total_latency,
+                  'max_memory_allocated':max_memory_allocated
                 }
                 setOverviewStats(overviewStats)
                 console.log(overviewStats)
@@ -591,7 +598,8 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
 
   let tooltip_attrs_list = ['node_id', "dist_from_end_global", "respath_dist", "row_counter", "draw_order_row",
         "mod_outputs", "input_group_ix",
-        'n_ops', 'depth', 'input_shapes', 'output_shapes', 'is_output_global', "sparkflow", "params"]
+        'n_ops', 'depth', 'input_shapes', 'output_shapes', 'is_output_global', 
+        "sparkflow", "params", "incremental_memory_usage", "max_memory_allocated", "latency", "n_params"]
 
 
   return <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>

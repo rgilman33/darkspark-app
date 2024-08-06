@@ -8,7 +8,7 @@ const App = () => {
   const [filters, setFilters] = useState({});
   const [dropdownValue, setDropdownValue] = useState(''); // depth
   const [depthValues, setDepthValues] = useState([]); // depth choices
-  const [overviewStats, setOverviewStats] = useState({'total_params':0, 'total_latency':0});
+  const [overviewStats, setOverviewStats] = useState({'total_params':0, 'total_latency':0, 'max_memory_allocated':0});
 
 
   return (
