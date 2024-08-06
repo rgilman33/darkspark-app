@@ -580,7 +580,7 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
     //   console.log("single click")
     // }
   }
-
+  
   let tooltip_attrs_list = ['node_id', "dist_from_end_global", "respath_dist", "row_counter", "draw_order_row",
         "mod_outputs", "input_group_ix",
         'n_ops', 'depth', 'input_shapes', 'output_shapes', 'is_output_global', "sparkflow", "params"]
