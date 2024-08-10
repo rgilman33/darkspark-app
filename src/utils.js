@@ -21,6 +21,13 @@ export let globals = {
 
 export let scene = new THREE.Scene();
 scene.background = new THREE.Color(...[248, 249, 250].map(d => d/255));
+// Add lighting
+const ambientLight = new THREE.AmbientLight(0x404040); // Soft white light
+scene.add(ambientLight);
+
+const directionalLight = new THREE.DirectionalLight(0xffffff, 1); // White light, full intensity
+directionalLight.position.set(50, 50, 50).normalize(); // Position the light
+scene.add(directionalLight);
 
 
 ///////////////////////////////
@@ -52,7 +59,8 @@ export const low_priority_names = ["Sequential"] // will be removed first when l
 //
 const sphere_geometry = new THREE.CircleGeometry(1, 12);
 const square_geometry = new THREE.PlaneGeometry(1, 1);
-
+const box_geometry = new THREE.BoxGeometry(1, 1, 1);
+box_geometry.translate(-.5, 0, 0) // origin on the right side so box ends where tensor nodes used to be
 
 export const CLICKABLE_LAYER = 1
 export const TWEEN_MS = 600
@@ -291,6 +299,70 @@ export function get_text(op) {
 
 	return label
 }
+
+const materials = [
+    new THREE.MeshBasicMaterial({ color: 0xff0000 }), // Red
+    new THREE.MeshBasicMaterial({ color: 0x00ff00 }), // Green
+    new THREE.MeshBasicMaterial({ color: 0x0000ff }), // Blue
+    new THREE.MeshBasicMaterial({ color: 0xffff00 }), // Yellow
+    new THREE.MeshBasicMaterial({ color: 0xff00ff }), // Magenta
+    new THREE.MeshBasicMaterial({ color: 0x00ffff })  // Cyan
+  ];
+
+export function get_activation_volume(n, specs){
+    n.should_draw = true
+
+    let color = get_node_color(n)
+    let sphere = new THREE.Mesh( box_geometry, materials )
+
+    sphere.rotation.x = -Math.PI / 2; // Rotate 90 degrees to make it face upward
+    sphere.position.y += .1 // shift towards camera so doesn't overlap w edges
+
+    // bc orthographic
+    sphere.rotation.x += .3
+    sphere.rotateOnWorldAxis(new THREE.Vector3(0, 0, 1), 0.3);
+
+    sphere.scale.y = specs.height
+    sphere.scale.z = specs.width
+    sphere.scale.x = specs.depth
+
+    let group = new THREE.Group();
+    group.add(sphere)
+
+    if (n.should_draw){
+        let text = get_text(n)
+        group.add(text)
+        n.node_label = text
+
+        // Create a larger sphere for click events
+        let largerSphere = new THREE.Mesh(sphere_geometry,
+                new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0 })); // color doesn't matter
+        largerSphere.rotation.x = -Math.PI / 2; // Rotate 90 degrees to make it face upward
+        largerSphere.position.y += 0
+        
+        let s = 3
+        let larger_sphere_scale = Math.min(sphere.scale.x*s, MAX_SPHERE_SIZE) // don't need our large spheres to have any extra for clicking
+        largerSphere.scale.x = larger_sphere_scale
+        largerSphere.scale.y = larger_sphere_scale
+        largerSphere.scale.z = larger_sphere_scale
+        largerSphere.layers.set(CLICKABLE_LAYER);
+        largerSphere.smaller_sphere = sphere
+        group.add(largerSphere);
+
+        group.children.forEach(c => c.actual_node = n) // required for onHover, click events
+
+        group.children.forEach(o => {
+            o.visible = true
+        })
+    } else {
+        group.children.forEach(o => {
+            o.visible = false
+        })
+    }
+
+    return group
+}
+
 
 export function get_sphere_group(n){
     

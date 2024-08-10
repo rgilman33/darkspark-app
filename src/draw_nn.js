@@ -32,7 +32,13 @@ export function draw_nn() {
     function draw_op(op) {
         if (op.collapsed) { // Nodes
             if (op.mesh == undefined) { // if newly appearing node, create the mesh at the position
-                let sphere = get_sphere_group(op)
+                let sphere
+                if (op.is_activation_volume){
+                    sphere = utils.get_activation_volume(op, op.activation_volume_specs)
+                    // sphere.position.x -= (op.activation_volume_specs.depth/2)
+                } else {
+                    sphere = get_sphere_group(op)
+                }
 
                 if (op.originating_position == undefined) { // first init, directly draw at position 
                     sphere.position.x = op.x

@@ -12,6 +12,55 @@ export default function recompute_layout() {
 
     let nn = globals.nn
     
+
+
+    ///////////////////////////////////////////////
+    // activation volumes
+    function get_act_volume_specs(op) {
+        let specs = {
+            'features':[],
+            'spatial':[]
+        }
+        if ("dim_types" in op) {
+            op.dim_types.forEach((d,i)=>{
+                let s = op.shape[i]
+                if (d in specs) {
+                    specs[d].push(s)
+                }
+            })
+        }
+
+        if (specs.features.length==1 && specs.spatial.length==2) {
+            return specs
+        } else {
+            return undefined
+        }
+    }
+        
+    function add_activation_volume(op) {
+        if (op.collapsed) { // node
+        if (op.is_tensor_node && (op.node_type=="mod_out")) { // candidate for drawing
+            let specs = get_act_volume_specs(op)
+            if (specs!=undefined) { // only draw if we have sufficient dim type info
+            
+            let channels_scalar = .004
+            let spatial_scalar = channels_scalar *2
+            specs.height = specs.spatial[0] * spatial_scalar
+            specs.width = specs.spatial[1] * spatial_scalar
+            specs.depth = specs.features[0] * channels_scalar
+
+            op.activation_volume_specs = specs
+            op.is_activation_volume = true
+            }
+        }
+        } else { // expanded plane, continue inwards
+        op.children.forEach(c=>add_activation_volume(c))
+        }
+    }
+    add_activation_volume(nn)
+    ///////////////////////////////////////////////////
+
+    
     function reset_dims(op) {
         op.x_relative = op.x_relative_original
         op.y_relative = op.y_relative_original
@@ -19,6 +68,7 @@ export default function recompute_layout() {
         op.children.forEach(c => reset_dims(c))
     }
     reset_dims(nn)
+
 
     // Updating relative xy coords bc of expansions
     // just consider two levels at a time: an op and its children ops
@@ -46,8 +96,11 @@ export default function recompute_layout() {
             op_whose_dns_to_nudge.x_nudge_traversed = true
 
             let dns = utils.get_downstream_nodes(op_whose_dns_to_nudge, op.children)
-            let x_threshold = op_whose_dns_to_nudge.x_relative + op_whose_dns_to_nudge.w
             dns.forEach(dn => {
+                let x_threshold = op_whose_dns_to_nudge.x_relative + op_whose_dns_to_nudge.w
+                if (dn.is_activation_volume) {
+                    x_threshold += dn.activation_volume_specs.depth
+                }
                 if (dn.x_relative <= x_threshold) {
                     dn.x_relative = x_threshold + 1
                     dn.history_js.push("JS x nudged forward by "+utils.nice_name(op_whose_dns_to_nudge)+" "+x_threshold+" "+dn.x_relative)

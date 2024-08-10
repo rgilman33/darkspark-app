@@ -140,6 +140,7 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
     } );
 
 
+    
     //////////////////////////////////////////////////
     // Minimap
     //////////////////////////////////////////////////
@@ -435,6 +436,9 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
 
         utils.globals.curves_lookup = {} // have to reset this so as to not track. All curves have already been removed from scene above
 
+
+
+    
         fetch(filters.selectedModelPath)
             .then(response => response.arrayBuffer())
             .then(arrayBuffer => {
@@ -521,6 +525,7 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
                 setDepthValues(depth_values)
                 console.timeEnd("calc default depth")
 
+                /////
                 recompute_layout()
                 
                 draw_nn()
