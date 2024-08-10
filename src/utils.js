@@ -21,13 +21,13 @@ export let globals = {
 
 export let scene = new THREE.Scene();
 scene.background = new THREE.Color(...[248, 249, 250].map(d => d/255));
-// Add lighting
-const ambientLight = new THREE.AmbientLight(0x404040); // Soft white light
-scene.add(ambientLight);
+// // Add lighting
+// const ambientLight = new THREE.AmbientLight(0x404040); // Soft white light
+// scene.add(ambientLight);
 
-const directionalLight = new THREE.DirectionalLight(0xffffff, 1); // White light, full intensity
-directionalLight.position.set(50, 50, 50).normalize(); // Position the light
-scene.add(directionalLight);
+// const directionalLight = new THREE.DirectionalLight(0xffffff, 1); // White light, full intensity
+// directionalLight.position.set(50, 50, 50).normalize(); // Position the light
+// scene.add(directionalLight);
 
 
 ///////////////////////////////
@@ -256,7 +256,7 @@ export function get_text(op) {
             end_span.innerText = ")"
             div.appendChild(end_span)
         } else {
-            text = op.input_shapes[0]
+            text = op.shape
             div.innerHTML = text
         }
     } else if (["function", "module"].includes(op.node_type)) {

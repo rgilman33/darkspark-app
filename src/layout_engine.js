@@ -13,7 +13,7 @@ export default function recompute_layout() {
     let nn = globals.nn
     
 
-
+    ///////////////////////////////////////////////
     ///////////////////////////////////////////////
     // activation volumes
     function get_act_volume_specs(op) {
@@ -30,31 +30,58 @@ export default function recompute_layout() {
             })
         }
 
-        if (specs.features.length==1 && specs.spatial.length==2) {
+        if (specs.features.length==1 && specs.spatial.length==2) { // normal standard volume
+            return specs
+        } else if (specs.spatial.length==2 && specs.features.length==0) { // one channel is implied, add it in, eg depth output
+            specs.features.push(1)
+            return specs
+        } else if (specs.spatial.length==0 && specs.features.length==1) { // single feature vector, add ones for spatial to show
+            specs.spatial.push(1)
+            specs.spatial.push(1)
             return specs
         } else {
             return undefined
         }
     }
-        
-    function add_activation_volume(op) {
-        if (op.collapsed) { // node
-        if (op.is_tensor_node && (op.node_type=="mod_out")) { // candidate for drawing
-            let specs = get_act_volume_specs(op)
-            if (specs!=undefined) { // only draw if we have sufficient dim type info
-            
-            let channels_scalar = .004
-            let spatial_scalar = channels_scalar *2
-            specs.height = specs.spatial[0] * spatial_scalar
-            specs.width = specs.spatial[1] * spatial_scalar
-            specs.depth = specs.features[0] * channels_scalar
-
-            op.activation_volume_specs = specs
-            op.is_activation_volume = true
+    let always_show_act_vol_fns = ["conv2d", "linear", "max_pool2d", "cat", "mean", "interpolate", 
+                "avg_pool2d", "adaptive_avg_pool2d", "adaptive_avg_pool1d"] 
+    let show_act_vol_if_shape_changes = ["__getitem__", "chunk", "split", "unfold", "stack"]
+    function should_draw_act_volume(op){
+        if (op.is_tensor_node) {
+            if (op.is_global_input || op.is_output_global) {
+                return true
+            } else if (op.node_type=="mod_out"){
+                // let dispatching_module_is_collapsed = globals.nodes_lookup[op.from_module_nid].collapsed
+                return true //dispatching_module_is_collapsed // don't show when mod is expanded
+                // if use this, then will have to change actual node mesh bc it started as small square and is now a volume
+            } else if (op.node_type=="fn_out"){
+                if (always_show_act_vol_fns.includes(op.created_by_fn)) {
+                    return true
+                } else if (show_act_vol_if_shape_changes.includes(op.created_by_fn)) {
+                    return true // TODO only return if shape changes. Will need to get actvol specs first
+                }
             }
         }
+        return false
+    }
+    function add_activation_volume(op) {
+        if (op.collapsed) { // node
+            if (should_draw_act_volume(op)) { // candidate for drawing
+                let specs = get_act_volume_specs(op)
+                if (specs!=undefined) { // only draw if we have sufficient dim type info
+                
+                    let channels_scalar = .004
+                    let spatial_scalar = channels_scalar *2
+                    specs.height = specs.spatial[0] * spatial_scalar
+                    specs.width = specs.spatial[1] * spatial_scalar
+                    specs.depth = specs.features[0] * channels_scalar
+
+                    op.activation_volume_specs = specs
+                    op.is_activation_volume = true
+                }
+            }
         } else { // expanded plane, continue inwards
-        op.children.forEach(c=>add_activation_volume(c))
+            op.children.forEach(c=>add_activation_volume(c))
         }
     }
     add_activation_volume(nn)

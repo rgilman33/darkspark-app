@@ -472,11 +472,21 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
                 }
                 mark_parentage(nn)
 
-                function add_to_nodes_lookup(op) {
+                function add_to_nodes_lookup(op) { // modules and ops
                   globals.nodes_lookup[op["node_id"]] = op
                   op.children.forEach(c => add_to_nodes_lookup(c))
                 }
                 add_to_nodes_lookup(nn)
+
+                // adding actual upstream nodes, for convenience. Not used currently.
+                console.time("linking upstream nodes")
+                function link_upstream_nodes(op){
+                  op.upstream_nodes = op.uns.map(nid => globals.nodes_lookup[nid])
+                  op.children.forEach(c => link_upstream_nodes(c))
+                }
+                link_upstream_nodes(nn)
+                console.timeEnd("linking upstream nodes")
+                //
 
                 // set max depth, used for scales
                 globals.max_depth = 0
@@ -491,31 +501,29 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
 
                 // Get default depth
                 console.time("calc default depth")
-                let depth_counter = new Array(100).fill(0)
+                let depth_counter = {}
                 function count_n_nodes_at_depth_levels(op) {
+                    if (!(op.depth in depth_counter)) {
+                      depth_counter[op.depth] = 0
+                    }
                     depth_counter[op.depth] += op.children.length
                     op.children.forEach(c => count_n_nodes_at_depth_levels(c))
                 }
                 count_n_nodes_at_depth_levels(nn)
 
-                let default_depth
-                let done = false
-                let i = 0
-                let max_default_nodes = 2000
-                while (!done) {
-                    let n_nodes = depth_counter[i]
-                    if ((n_nodes > max_default_nodes)) {
-                        default_depth = i
-                        done = true
-                    } else if (i>=depth_counter.length-1) {
-                        default_depth = globals.max_depth
-                        done = true
-                    }
-                    i += 1
+                let default_depth = globals.max_depth
+                let max_default_nodes = 1600
+                let cumulative_nodes_shown = 0
+                for (let depth=0; depth<=globals.max_depth; depth++){
+                  let nodes_at_depth = depth_counter[depth]
+                  cumulative_nodes_shown += nodes_at_depth
+                  if (cumulative_nodes_shown>max_default_nodes) {
+                    default_depth = depth-1 // prev 
+                    break
+                  }
                 }
-                default_depth = 2 //TODO UNDO just for sd dev
-
-                console.log("default depth ", default_depth)
+                default_depth = Math.max(default_depth, 2)
+                console.log("default depth ", default_depth, "nodes at depths", depth_counter)
                 // init at collapsed depth
                 utils.collapse_to_depth(default_depth)
 
