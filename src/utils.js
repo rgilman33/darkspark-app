@@ -300,12 +300,15 @@ export function get_text(op) {
 	return label
 }
 
+let act_vol_base_color = [115, 147, 179].map(d=>d/255) // blue-grey
 const materials = [
-    new THREE.MeshBasicMaterial({ color: 0xff0000 }), // Red
+    new THREE.MeshBasicMaterial({color: new THREE.Color(...act_vol_base_color.map(d=>d*.2))}), // Front
     new THREE.MeshBasicMaterial({ color: 0x00ff00 }), // Green
-    new THREE.MeshBasicMaterial({ color: 0x0000ff }), // Blue
+    new THREE.MeshBasicMaterial({color: new THREE.Color(...act_vol_base_color.map(d=>d*1.))}), // Top
+
     new THREE.MeshBasicMaterial({ color: 0xffff00 }), // Yellow
-    new THREE.MeshBasicMaterial({ color: 0xff00ff }), // Magenta
+    new THREE.MeshBasicMaterial({color: new THREE.Color(...act_vol_base_color.map(d => d*.5))}), // Facing
+
     new THREE.MeshBasicMaterial({ color: 0x00ffff })  // Cyan
   ];
 
@@ -321,6 +324,8 @@ export function get_activation_volume(n, specs){
     // bc orthographic
     sphere.rotation.x += .3
     sphere.rotateOnWorldAxis(new THREE.Vector3(0, 0, 1), 0.3);
+    // sphere.rotateOnWorldAxis(new THREE.Vector3(0, 1, 0), -.05);
+
 
     sphere.scale.y = specs.height
     sphere.scale.z = specs.width

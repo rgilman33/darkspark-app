@@ -51,8 +51,8 @@ export default function recompute_layout() {
             if (op.is_global_input || op.is_output_global) {
                 return true
             } else if (op.node_type=="mod_out"){
-                // let dispatching_module_is_collapsed = globals.nodes_lookup[op.from_module_nid].collapsed
-                return true //dispatching_module_is_collapsed // don't show when mod is expanded
+                let dispatching_module_is_collapsed = globals.nodes_lookup[op.from_module_nid].collapsed
+                return dispatching_module_is_collapsed // don't show when mod is expanded
                 // if use this, then will have to change actual node mesh bc it started as small square and is now a volume
             } else if (op.node_type=="fn_out"){
                 if (always_show_act_vol_fns.includes(op.created_by_fn)) {
@@ -65,6 +65,7 @@ export default function recompute_layout() {
         return false
     }
     function add_activation_volume(op) {
+        op.is_activation_volume = false // default false
         if (op.collapsed) { // node
             if (should_draw_act_volume(op)) { // candidate for drawing
                 let specs = get_act_volume_specs(op)

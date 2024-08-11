@@ -29,15 +29,31 @@ export function draw_nn() {
 
     globals.ops_of_visible_planes = []
     globals.ops_of_visible_nodes = []
+    function remove_tensor_square_bc_now_is_actvol(op){
+        if (op.collapsed) {
+            if (op.is_activation_volume && op.tensor_node_type=="standard_node" && op.mesh != undefined) {
+                // wasn't an actvol before but is now
+                utils.remove_sphere(op)
+            } else if (!op.is_activation_volume && op.tensor_node_type=="act_vol" && op.mesh != undefined) {
+                // was prev an actvol but now should be simple square
+                utils.remove_sphere(op)
+            }
+        } else {
+            op.children.forEach(c=>remove_tensor_square_bc_now_is_actvol(c))
+        }
+    }
+    remove_tensor_square_bc_now_is_actvol(nn)
     function draw_op(op) {
         if (op.collapsed) { // Nodes
             if (op.mesh == undefined) { // if newly appearing node, create the mesh at the position
                 let sphere
                 if (op.is_activation_volume){
                     sphere = utils.get_activation_volume(op, op.activation_volume_specs)
+                    op.tensor_node_type="act_vol"
                     // sphere.position.x -= (op.activation_volume_specs.depth/2)
                 } else {
                     sphere = get_sphere_group(op)
+                    op.tensor_node_type="standard_node"
                 }
 
                 if (op.originating_position == undefined) { // first init, directly draw at position 
