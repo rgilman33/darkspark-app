@@ -127,7 +127,8 @@ export default function recompute_layout() {
             dns.forEach(dn => {
                 let x_threshold = op_whose_dns_to_nudge.x_relative + op_whose_dns_to_nudge.w
                 if (dn.is_activation_volume) {
-                    x_threshold += dn.activation_volume_specs.depth
+                    x_threshold += Math.round(dn.activation_volume_specs.depth) 
+                    // occ uses array, so int for ix. Can undo the round when occ is more flexible TODO NOTE NOTE
                 }
                 if (dn.x_relative <= x_threshold) {
                     dn.x_relative = x_threshold + 1
@@ -168,6 +169,7 @@ export default function recompute_layout() {
         ////////////////////////////////////////////////
         // Relative y
 
+        // NOTE TODO ensure these all use ints, for occ grid
 
         // compile rows lookup
         let rows = {}
@@ -208,8 +210,8 @@ export default function recompute_layout() {
         })
 
         let occupancy = new Array(3000).fill(-1)
-        function block_occupancy(from, until, value) {
-            for (let i=from; i<=until; i++) { // includes 'until'
+        function block_occupancy(from, until, value) { // NOTE must be int
+            for (let i=from; i<=until; i++) { // includes 'until'. May be float bc eg act vol
                 occupancy[i] = Math.max(occupancy[i], value) // why can't just block at y directly, when will this come in below?
             }
         }
@@ -262,8 +264,6 @@ export default function recompute_layout() {
             })
                 
 
-
-
             row_queue.forEach(row => {
                 let occ = Math.max(...occupancy.slice(row.starts_at_x, row.ends_at_x+1))
                 let row_overlap = occ - row.y_relative +1 // all have same y
@@ -276,7 +276,7 @@ export default function recompute_layout() {
         }
 
         ///////////////////////////
-        if (!DEBUG) {
+        if (!DEBUG) { // NOTE NOTE NOTE when come back to this, have to update to use integers bc of occupancy, like actvols has to do. 
             let input_nodes_can_be_removed = true
             op.children.forEach(o => {
                 if (o.is_output) { 
@@ -313,7 +313,8 @@ export default function recompute_layout() {
         }
 
         // ////////////////////////////
-        // // Ease the slope
+        // NOTE NOTE NOTE TODO when come back to this, have to use ints, same as actvols, bc of occ
+        // // Ease the slope 
         // // this clears the space, but in draw edges need to use it
         // op.children.forEach(o => o.x_nudge_traversed = false)
         // function _nudge_forward_dns(op_whose_dns_to_nudge) {
