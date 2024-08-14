@@ -234,80 +234,81 @@ export function draw_nn() {
     nn.children.sort((a,b) => {return a.draw_order - b.draw_order})
     draw_op(nn)
 
-    // ////////////////// color by op type
-    // let op_color_lookup = {}
-    // let feature_detector_ops = ["conv2d", "linear", "scaled_dot_product_attention"]
-    // feature_detector_ops.forEach(n => {
-    //     op_color_lookup[n] = new THREE.Color('green')
-    // })
-    // let norm_ops = ["layer_norm", "group_norm"]
-    // norm_ops.forEach(n => {
-    //     op_color_lookup[n] = new THREE.Color('lightblue')
-    // })
-    // let activation_ops = ["silu", "relu", "gelu"]
-    // activation_ops.forEach(n => {
-    //     op_color_lookup[n] = new THREE.Color('brown')
-    // })
-    // let arithmetic_ops = ["add", "mul", "div"]
-    // arithmetic_ops.forEach(n => {
-    //     op_color_lookup[n] = new THREE.Color('black')
-    // })
-
-    // function op_type_to_color(op) {
-    //     if (op.node_type=="module") {
-    //         return new THREE.Color('red')
-    //     } else if (op.is_tensor_node) {
-    //         return new THREE.Color('blue')
-    //     } else {
-    //         if (op.name in op_color_lookup) {
-    //             return op_color_lookup[op.name]
-    //         } else {
-    //             return new THREE.Color('grey')
-    //         }
-    //     }
-    // }
-    // globals.ops_of_visible_nodes.forEach(op => {
-    //     let node = op.mesh.children[0]
-    //     node.material.color = op_type_to_color(op)
-    // })
-
-    ///////////////////////
-    // color by continuous
-    let colorby_values = []
-    // let colorby_attr = "latency"
-    // let colorby_attr = "max_memory_allocated"
-    // let colorby_attr = "incremental_memory_usage"
-    let colorby_attr = "n_params"
-    globals.ops_of_visible_nodes.forEach(op => {
-        if (colorby_attr in op) {
-            colorby_values.push(op[colorby_attr])
-        }
+    ////////////////// color by op type
+    let op_color_lookup = {}
+    let feature_detector_ops = ["conv2d", "linear", "scaled_dot_product_attention", "embedding"]
+    feature_detector_ops.forEach(n => {
+        op_color_lookup[n] = new THREE.Color('green')
     })
-    function value_adjuster(v) {
-        // return Math.sqrt(s) 
-        return v 
-    }
-    colorby_values = colorby_values.map(s => {
-        return value_adjuster(s)
+    let norm_ops = ["layer_norm", "group_norm"]
+    norm_ops.forEach(n => {
+        op_color_lookup[n] = new THREE.Color('lightblue')
     })
-    let _max = Math.max(...colorby_values)
-    let _min = Math.min(...colorby_values)
-    function normalize_colorby(v) {
-        let normalized = (value_adjuster(v) - _min) / (_max - _min)
-        return normalized
-    }
-    function colorby_continuous(op) {
-        if (colorby_attr in op) {
-            let l = normalize_colorby(op[colorby_attr])
-            return new THREE.Color(l, .3, .3)
-        } else {
+    let activation_ops = ["silu", "relu", "gelu"]
+    activation_ops.forEach(n => {
+        op_color_lookup[n] = new THREE.Color('brown')
+    })
+    let arithmetic_ops = ["add", "mul", "div"]
+    arithmetic_ops.forEach(n => {
+        op_color_lookup[n] = new THREE.Color('black')
+    })
+
+    function op_type_to_color(op) {
+        if (op.node_type=="module") {
             return new THREE.Color('grey')
+        } else if (op.is_tensor_node) {
+            return new THREE.Color('lightgrey')
+        } else {
+            if (op.name in op_color_lookup) {
+                return op_color_lookup[op.name]
+            } else {
+                return new THREE.Color('lightblue')
+            }
         }
     }
     globals.ops_of_visible_nodes.forEach(op => {
         let node = op.mesh.children[0]
-        node.material.color = colorby_continuous(op)
+        node.material.color = op_type_to_color(op)
     })
+
+    // ///////////////////////
+    // // color by continuous
+    // let colorby_values = []
+    // // let colorby_attr = "latency"
+    // // let colorby_attr = "max_memory_allocated"
+    // // let colorby_attr = "incremental_memory_usage"
+    // let colorby_attr = "n_params"
+    // globals.ops_of_visible_nodes.forEach(op => {
+    //     if (colorby_attr in op) {
+    //         colorby_values.push(op[colorby_attr])
+    //     }
+    // })
+    // function value_adjuster(v) {
+    //     // return Math.sqrt(s) 
+    //     return v 
+    // }
+    // colorby_values = colorby_values.map(s => {
+    //     return value_adjuster(s)
+    // })
+    // let _max = Math.max(...colorby_values)
+    // let _min = Math.min(...colorby_values)
+    // function normalize_colorby(v) {
+    //     let normalized = (value_adjuster(v) - _min) / (_max - _min)
+    //     return normalized
+    // }
+    // function colorby_continuous(op) {
+    //     if (colorby_attr in op) {
+    //         let l = normalize_colorby(op[colorby_attr])
+    //         return new THREE.Color(l, .3, .3)
+    //     } else {
+    //         return new THREE.Color('grey')
+    //     }
+    // }
+    // globals.ops_of_visible_nodes.forEach(op => {
+    //     let node = op.mesh.children[0]
+    //     node.material.color = colorby_continuous(op)
+    // })
+    // /////////////
 
 
     console.timeEnd("draw nodes")
@@ -456,7 +457,7 @@ export function draw_nn() {
         } else if ("sparkflow" in n1) {
             sparkflow = n1["sparkflow"]
         }
-        let zoom_max_linewidth = utils.interp(camera.zoom, [10,50], [2.8, 5]) 
+        let zoom_max_linewidth = utils.interp(camera.zoom, [10,50], [2.8, 20]) // max was at five
         // TODO this won't update on zoom scroll, only when open or close.
         // if like this then attach listener to zoom event
 
@@ -467,9 +468,8 @@ export function draw_nn() {
             let brightness_factor = utils.interp(normalized_sparkflow, [0, 1], [4,.2]) // darker for more weight
             // let brightness_factor = utils.interp(normalized_sparkflow, [0, 1], [3,.8]) // lighter for when paired w linewidth
             let color = utils.get_edge_color(brightness_factor)
-            // return [linewidth, color]
+            return [linewidth, color]
             // return [2, color] 
-            return [2, color] 
             // most browsers I've looked at don't support this linewidth spec. Keeping one so can develop in way that most ppl will see.
             // but they seem to look wider on other browsers? so putting as two here 
         } else {

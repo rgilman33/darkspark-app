@@ -113,16 +113,18 @@ export function get_edge_pts(n0, n1) {
     if (same_y) { // flat
         pts = get_pts_for_flat_line(pt1, pt2)
     } else { // has vertical part
+        // let min_x_dist = Math.round(Math.abs(n1.y_relative - n0.y_relative) / 2) // same as in layout_engine. should consolidate
+        // let elbow_x_dist = Math.max(min_x_dist, 1)
+        let elbow_x_dist = 1
         if (x_dist > 1) { // elbow. Compound curve
             // if ((n0.respath_dist == n1.respath_dist) || n0.is_last_in_line){ // normal elbow TODO this needs work. Mark it in layout_engine. 
                 if ( n0.is_last_in_line){ // normal elbow 
-                // Shouldn't this only be is_last_in_line now? 
-                let elbow = {x:n1.x-1, y:0, z:n0.y}
+                let elbow = {x:n1.x-elbow_x_dist, y:0, z:n0.y}
                 let flat_pts = get_pts_for_flat_line(pt1, elbow)
                 let curve_pts = get_curve_pts(elbow, pt2, CURVE_N_PTS-2)
                 pts = flat_pts.concat(curve_pts)    
             } else { // pre elbow // TODO pre-elbow also needs to be added to occ blocking in layout engine
-                let elbow = {x:n0.x+1, y:0, z:n1.y}
+                let elbow = {x:n0.x+elbow_x_dist, y:0, z:n1.y}
                 let curve_pts = get_curve_pts(pt1, elbow, CURVE_N_PTS-2)
                 let flat_pts = get_pts_for_flat_line(elbow, pt2)
                 pts = curve_pts.concat(flat_pts)
@@ -311,12 +313,23 @@ const materials = [
 
     new THREE.MeshBasicMaterial({ color: 0x00ffff })  // Cyan
   ];
+  const overflow_materials = [ // quick hack so can see when we have overflow 
+    new THREE.MeshBasicMaterial({color: new THREE.Color('red')}), // Front
+    new THREE.MeshBasicMaterial({ color: 0x00ff00 }), // Green
+    new THREE.MeshBasicMaterial({color: new THREE.Color(...act_vol_base_color.map(d=>d*1.))}), // Top
+
+    new THREE.MeshBasicMaterial({ color: 0xffff00 }), // Yellow
+    new THREE.MeshBasicMaterial({color: new THREE.Color(...act_vol_base_color.map(d => d*.5))}), // Facing
+
+    new THREE.MeshBasicMaterial({ color: 0x00ffff })  // Cyan
+  ];
 
 export function get_activation_volume(n, specs){
     n.should_draw = true
 
     let color = get_node_color(n)
-    let sphere = new THREE.Mesh( box_geometry, materials )
+    let act_vol_materials = specs.depth_overflow > 0 ? overflow_materials : materials
+    let sphere = new THREE.Mesh( box_geometry, act_vol_materials )
 
     sphere.rotation.x = -Math.PI / 2; // Rotate 90 degrees to make it face upward
     sphere.position.y += .1 // shift towards camera so doesn't overlap w edges

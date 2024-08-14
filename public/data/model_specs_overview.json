@@ -159,6 +159,9 @@
     "sd-xl-refiner": "sd-xl-refiner",
     "sdedit": "sdedit",
     "style-aligned": "style-aligned",
+    "sdxl-flash": "sdxl-flash",
+    "sd-turbo": "sd-turbo",
+    "sd-turbo-img2img": "sd-turbo-img2img",
     "dpt-large": "dpt-large",
     "dpt-hybrid-midas": "dpt-hybrid-midas",
     "GLPN": "GLPN",
@@ -170,8 +173,5 @@
     "perceiver": "perceiver",
     "t5": "t5",
     "florence-2-base": "florence-2-base",
-    "sd3": "sd3",
-    "sd-turbo": "sd-turbo",
-    "sd-turbo-img2img": "sd-turbo-img2img",
-    "sdxl-flash": "sdxl-flash"
+    "sd3": "sd3"
 }

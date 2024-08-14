@@ -36,9 +36,13 @@ export default function recompute_layout() {
             specs.features.push(1)
             return specs
         } else if (specs.spatial.length==0 && specs.features.length==1) { // single feature vector, add ones for spatial to show
+            return undefined // don't like how they look. too long and thin, take up too much space
+            // specs.spatial.push(1)
+            // specs.spatial.push(1)
+            // return specs
+        } else if (specs.spatial.length==1 && specs.features.length==1) { // sequence, eg text, pad width w one and sequence shown vertically
             specs.spatial.push(1)
-            specs.spatial.push(1)
-            return specs
+            return undefined // specs // can put back in when we're expanding y height variable, otherwise overlap makes hard to read
         } else {
             return undefined
         }
@@ -71,11 +75,29 @@ export default function recompute_layout() {
                 let specs = get_act_volume_specs(op)
                 if (specs!=undefined) { // only draw if we have sufficient dim type info
                 
-                    let channels_scalar = .004
-                    let spatial_scalar = channels_scalar *2
+                    let channels_scalar = .01
+                    let spatial_scalar = channels_scalar * 1
                     specs.height = specs.spatial[0] * spatial_scalar
                     specs.width = specs.spatial[1] * spatial_scalar
                     specs.depth = specs.features[0] * channels_scalar
+
+                    let MIN_SPATIAL = .04
+                    specs.width += MIN_SPATIAL
+                    specs.height += MIN_SPATIAL
+
+                    let MAX_SPATIAL = 3
+                    specs.width = Math.min(specs.width, MAX_SPATIAL) // TODO have to indicate overflow here also 
+                    specs.height = Math.min(specs.height, MAX_SPATIAL)
+
+                    let MAX_DEPTH = 8
+                    let depth_overflow
+                    if (specs.depth > MAX_DEPTH) {
+                        depth_overflow = specs.depth - MAX_DEPTH
+                        specs.depth = MAX_DEPTH
+                    } else {
+                        depth_overflow = 0
+                    }
+                    specs.depth_overflow = depth_overflow
 
                     op.activation_volume_specs = specs
                     op.is_activation_volume = true
@@ -186,7 +208,30 @@ export default function recompute_layout() {
         for (let rid in rows) {
             let row = rows[rid]
             row.nodes.sort((a,b) => a.x_relative - b.x_relative)
-            row.starts_at_x = row.nodes[0].x_relative
+            let first_op = row.nodes[0]
+
+            let uns = utils.get_upstream_nodes(first_op, op.children) // all the way from dispatching node, relevent in eg stylegan when it is input
+            if (uns.length==1 && uns[0].node_type=="input") { 
+                // Total hack for now. Only affects stylegan as far as i know. TODO NOTE NOTE don't know if this affects non inputs. See notes below
+                // let un_max_x = Math.max(...uns.map(un => un.x_relative)) // when will there be multiple? should this be min? NOTE NOTE pay attn
+                // console.log(un_max_x, first_op.x_relative)
+                uns.sort((a,b) => a.x_relative - b.x_relative) // when will there be multiple? should this be min? NOTE NOTE pay attn
+                let max_un = uns[uns.length-1]
+                row.starts_at_x = max_un.x_relative + max_un.w + 1 // one after the right edge of un, width is zero when collapsed
+            } else {
+                row.starts_at_x = first_op.x_relative
+            }
+            // row.starts_at_x = un_max_x + 1
+            // // dunno about this. Doing it for case of stylegan where dispatching node is input, doesn't have fn out etc to move upwards
+            // // so row was starting way far down, at the elbow, but want it to start earlier bc of occupancy
+            // This is not quite right, bc we're also extending forward, so get double counting when extend both. Coat mini has this, leading
+            // to extraneous up shift. Restricting to only un==input for now to affect only stylegan
+            // will the move the elbows in JS fix this? we need each row to always start right after the dispatching node and end 
+            // right before the terminating node. 
+
+            // row.starts_at_x = first_op.x_relative
+
+
             let last_op = row.nodes[row.nodes.length-1]
             let dns = utils.get_downstream_nodes(last_op, op.children) // all the way till terminating node, ie not just row itself
             let dn_max_x = Math.max(...dns.map(dn => dn.x_relative))
@@ -194,7 +239,19 @@ export default function recompute_layout() {
             let until = last_op.x_relative + last_op.w
             row.ends_at_x = Math.max(until, dn_max_x-1) 
 
-            row.y_relative = row.nodes[0].y_relative // all have same y_relative
+            row.y_relative = 0 //row.nodes[0].y_relative // all have same y_relative
+
+            // 
+            row.is_only_tensors = true
+            row.nodes.forEach(n => {
+                if (["function", "module"].includes(n.node_type)) { // can remove the elbow, ext check bc next run making those tensors
+                    row.is_only_tensors = false
+                }
+                n.n_peer_row_nodes = row.nodes.length
+            })
+            row.nodes.forEach(n=>n.row=row)
+            
+
         }
         // Set y_relative for row and all nodes in row. should only increment up
         function set_row_y(row, new_y_value) {
@@ -219,21 +276,28 @@ export default function recompute_layout() {
         while (row_queue.length > 0) {
             
             // moving other rows up in response to this row
+            // this row's y_relative has already been set
             let row = row_queue.shift() // take at ix 0 and shift rest one to the left
             
+            //////////////////
             // block occupancy for row line
-            block_occupancy(row.starts_at_x, row.ends_at_x, row.y_relative)
+            let above_pad = .8 //.5 //row.is_only_tensors ? .2 : .6 //1 // TODO move row padding to row creation
+            // this works when have expansions, but if nodes are starting out already higher than the expansion, we're not 
+            // catching it. Can change to not expand in Python, or adjust our row setting below to also allow them to go down
+            // if overlap is negative
+
+            block_occupancy(row.starts_at_x, row.ends_at_x, row.y_relative+above_pad)
 
             // Block occ for all expanded ops in the row
             row.nodes.forEach(o => {
                 if (!o.collapsed) { // expanded box within the row
-                    let top = o.y_relative + o.h
+                    let top = o.y_relative + o.h + .8 //.5 //.6
                     let right = o.x_relative + o.w
                     block_occupancy(o.x_relative, right, top)
                 }
             })
 
-
+            ///////////////////
             // Shifting input rows up
             let queue_row_ids = row_queue.map(r => r.draw_order_row)
 
@@ -248,49 +312,81 @@ export default function recompute_layout() {
                     c_sub_inputs.forEach(input_node => {
                         let uns = utils.get_upstream_nodes(input_node, op.children) // the upstream op back in the current peer op group
                         if (uns.length==1) {
+
                             let id_of_incoming_row = uns[0].draw_order_row
                             let incoming_row = rows[id_of_incoming_row]
 
                             if (incoming_row.y_relative < input_node.y_relative_grandparent) { 
                                 if (queue_row_ids.includes(id_of_incoming_row)) { // if the incoming row is not yet fixed
-                                    
                                     // if the incoming row is below the target height of the input node of the expanded box
                                     set_row_y(incoming_row, input_node.y_relative_grandparent)
+                                    incoming_row.has_been_moved_up_w_expanding_box = true
                                 }
                             }
                         }
                     })
                 }
             })
-                
+            row.nodes.forEach(o => { // TODO if we like this, refactor into one fn, only diff is get_uns and .is_output
+                if (!o.collapsed) { // expanded box within the row. bring its input nodes up to its frame of reference
+                    let c_sub_inputs = o.children.filter(cc => cc.is_output)
+                    c_sub_inputs.forEach(cc => { // y_relative_grandparent is the subops y_relative value in the current frame of reference
+                        cc.x_relative_grandparent = o.x_relative + cc.x_relative
+                        cc.y_relative_grandparent = o.y_relative + cc.y_relative
+                    })
+                    c_sub_inputs.sort((a,b) => a.y_relative_grandparent - b.y_relative_grandparent) 
+                    c_sub_inputs.forEach(input_node => {
+                        let uns = utils.get_downstream_nodes(input_node, op.children) // the upstream op back in the current peer op group
+                        if (uns.length==1) {
 
-            row_queue.forEach(row => {
-                let occ = Math.max(...occupancy.slice(row.starts_at_x, row.ends_at_x+1))
-                let row_overlap = occ - row.y_relative +1 // all have same y
-                if (row_overlap > 0) { 
-                    set_row_y(row, row.y_relative+row_overlap) // incrementing upwards
+                            let id_of_incoming_row = uns[0].draw_order_row
+                            let incoming_row = rows[id_of_incoming_row]
+
+                            if (incoming_row.y_relative < input_node.y_relative_grandparent) { 
+                                if (queue_row_ids.includes(id_of_incoming_row)) { // if the incoming row is not yet fixed
+                                    // if the incoming row is below the target height of the input node of the expanded box
+                                    set_row_y(incoming_row, input_node.y_relative_grandparent)
+                                    incoming_row.has_been_moved_up_w_expanding_box = true
+                                }
+                            }
+                        }
+                    })
                 }
-                
+            })
+
+            // move remaining rows up to evade occupancy
+            row_queue.forEach(row => {
+                let below_pad = .8 //.5 //row.is_only_tensors ? .2 : .6
+                let occ = Math.max(...occupancy.slice(row.starts_at_x, row.ends_at_x+1))
+                let new_row_y =  occ+below_pad
+
+                if (row.has_been_moved_up_w_expanding_box && row.y_relative>new_row_y) { 
+                    // if moved up w expanding box and is higher than new value, let it stay. 
+                } else {
+                    set_row_y(row, new_row_y)
+                }
             })
     
         }
 
         ///////////////////////////
-        if (!DEBUG) { // NOTE NOTE NOTE when come back to this, have to update to use integers bc of occupancy, like actvols has to do. 
+        if (!DEBUG) {
             let input_nodes_can_be_removed = true
             op.children.forEach(o => {
                 if (o.is_output) { 
                     
-                    o.x_relative -= 1.8 //.9
-    
                     let uns = utils.get_upstream_nodes(o, op.children)
-                    if (uns.length==1) {
-                        if (uns[0].node_type == "fn_out" || uns[0].node_type == "mod_out" || uns[0].node_type == "elbow") {
-                            uns[0].x_relative -= .9
-                            uns[0].node_is_extraneous_io = true
-                        }
+                    if ((uns.length==1) && uns[0].is_tensor_node && !uns[0].is_activation_volume) {
+    
+                        o.x_relative -= 2 //1.8 //.9
+
+                        uns[0].x_relative -= 1 //.9
+                        uns[0].node_is_extraneous_io = true
+                    } else {
+                        o.x_relative -= 1 //1.8 //.9
                     }
-                } else if (o.is_input) {
+                } 
+                else if (o.is_input) {
 
                     let dns = utils.get_downstream_nodes(o, op.children) 
 
@@ -303,17 +399,20 @@ export default function recompute_layout() {
                     }
                 }
             })
+
             if (input_nodes_can_be_removed) {
                 op.children.forEach(o => {
                     if (!o.is_input) {
-                        o.x_relative -= .9
+                        o.x_relative -= 1 //.9
                     }
                 })
             }
         }
 
         // ////////////////////////////
-        // NOTE NOTE NOTE TODO when come back to this, have to use ints, same as actvols, bc of occ
+        // NOTE this is not correct, as this is doing it within each module, but our correction in draw_nn is absolute coords
+        // we need to simplify our elbows, make them all explicit, then can calc the slope easing once here and everything else
+        // will be good
         // // Ease the slope 
         // // this clears the space, but in draw edges need to use it
         // op.children.forEach(o => o.x_nudge_traversed = false)
@@ -322,7 +421,7 @@ export default function recompute_layout() {
 
         //     let dns = utils.get_downstream_nodes(op_whose_dns_to_nudge, op.children)
         //     dns.forEach(dn => {
-        //         let min_x_dist = (Math.abs(dn.y_relative - op_whose_dns_to_nudge.y_relative) / 2)
+        //         let min_x_dist = Math.round(Math.abs(dn.y_relative - op_whose_dns_to_nudge.y_relative) / 2)
         //         let x_threshold = op_whose_dns_to_nudge.x_relative + min_x_dist
         //         if (dn.x_relative < x_threshold) {
         //             let diff = x_threshold - dn.x_relative
@@ -337,6 +436,7 @@ export default function recompute_layout() {
         //     })
         // }
         // input_ops.forEach(o => _nudge_forward_dns(o))
+        // /////////////////////////////////
 
 
         // Now that all children ops have their dims, and have been shifted bc of expansions, we can ascertain

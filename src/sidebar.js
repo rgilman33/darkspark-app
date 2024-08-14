@@ -21,7 +21,7 @@ const Sidebar = ({ onFilterChange, setDropdownValue, dropdownValue, depthValues,
         .then(response => response.json())
         .then(data => {
             // let default_model = Object.keys(data)[0]
-            let default_model = "gigagan" //"stable-diffusion-v1-4" //"maskrcnn_resnet50_fpn" 
+            let default_model = "t5" //"maskrcnn_resnet50_fpn" 
             console.log("json loaded", default_model)
 
             setSelectedModel(default_model) // display name of model
