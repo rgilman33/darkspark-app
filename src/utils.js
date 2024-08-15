@@ -63,6 +63,27 @@ const square_geometry = new THREE.PlaneGeometry(1, 1);
 const box_geometry = new THREE.BoxGeometry(1, 1, 1);
 box_geometry.translate(-.5, 0, 0) // origin on the right side so box ends where tensor nodes used to be
 
+// console.log("box geometry", box_geometry)
+// // Access the vertices directly
+// const positionAttribute = box_geometry.attributes.position;
+// for (let i = 0; i < positionAttribute.count; i++) {
+//     const vertex = new THREE.Vector3();
+//     vertex.fromBufferAttribute(positionAttribute, i);
+//     console.log(vertex)
+
+//     // If the vertex is part of the top plane (Y = 0.5 for default BoxGeometry)
+//     if (vertex.z == .5) {
+//         vertex.y += .3; // Translate the top plane vertices upward
+//         vertex.x -= .1
+//     }
+
+//     // Write the vertex back to the geometry
+//     positionAttribute.setXYZ(i, vertex.x, vertex.y, vertex.z);
+// }
+
+
+
+
 export const CLICKABLE_LAYER = 1
 export const TWEEN_MS = 600
 export const TWEEN_EASE = TWEEN.Easing.Linear.None
@@ -229,6 +250,32 @@ export function get_group_label(op) {
 	return label
 }
 
+
+// //////////////
+
+// // function get_ops_of_onscreen_nodes
+// // globals.ops_of_visible_nodes
+// //////////////
+// globals.labels_pool = []
+
+// for (let i=0; i<50; i++) {
+
+//     const div = document.createElement( 'div' );
+// 	div.className = 'label';
+//     let text = 'placeholder'
+
+//     div.innerHTML = text
+
+//     div.style.display = 'none' // init to none, will show when close enough
+// 	div.style.backgroundColor = 'transparent';
+
+// 	const label = new CSS2DObject( div );
+// 	// label.position.set( 0, 0, 0 );
+//     label.center.set( .5, 1.1 ); // above node, centered horizontally
+
+//     globals.labels_pool.push(label)
+// }
+
 export function get_text(op) {
 	const div = document.createElement( 'div' );
 	div.className = 'label';
@@ -335,10 +382,10 @@ export function get_activation_volume(n, specs){
     sphere.rotation.x = -Math.PI / 2; // Rotate 90 degrees to make it face upward
     sphere.position.y += .1 // shift towards camera so doesn't overlap w edges
 
-    // bc orthographic
-    sphere.rotation.x += .3
-    sphere.rotateOnWorldAxis(new THREE.Vector3(0, 0, 1), 0.3);
-    // sphere.rotateOnWorldAxis(new THREE.Vector3(0, 1, 0), -.05);
+    // // bc orthographic
+    // sphere.rotation.x += .3
+    // sphere.rotateOnWorldAxis(new THREE.Vector3(0, 0, 1), 0.3);
+    // // sphere.rotateOnWorldAxis(new THREE.Vector3(0, 1, 0), -.05);
 
 
     sphere.scale.y = specs.height

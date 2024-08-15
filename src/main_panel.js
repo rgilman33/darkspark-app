@@ -149,6 +149,8 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
     stats.showPanel(0); // Show FPS panel
     statsRef.current.appendChild(stats.dom);
 
+    console.log(controls)
+
     
     //////////////////////////////////////////////////
     // Minimap
@@ -283,11 +285,11 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
         controls.update();
         renderer.render( scene, camera );
 
-        // // performance killers. sd at full goes from 30fps to 4fps
-        // labelRenderer.render( scene, camera );
-        // if (camera_zoom_changed_counter < 3000) { // five seconds at least? wtf?
-        //     utils.update_labels()
-        //     camera_zoom_changed_counter += 1
+        // // performance killers. sd at full goes from 30fps to 4fps on big computer. Mostly the update_labels fn
+        labelRenderer.render( scene, camera );
+        // if (camera_zoom_changed_counter < 3000) { // five seconds at least? wtf? even that doesn't work on smaller computer
+            utils.update_labels()
+            camera_zoom_changed_counter += 1
         // }
 
         // tracking if camera moved
@@ -296,6 +298,9 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
         camera_zoom = camera.zoom
         
         stats.end()
+
+            //
+        // controls.target.x = 100
 
         requestAnimationFrame( animate );
     }
