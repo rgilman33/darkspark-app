@@ -2,34 +2,46 @@ import React, { useState, useEffect } from 'react';
 import { TextField, Autocomplete } from '@mui/material';
 import * as utils from './utils'
 
-const Sidebar = ({ onFilterChange, setDropdownValue, dropdownValue, depthValues, overviewStats }) => {
-    const [modelOptions, setModelOptions] = useState({});
-    const [selectedModel, setSelectedModel] = useState('');
 
+import { useLocation, useNavigate } from 'react-router-dom';
+
+function useQuery() {
+  return new URLSearchParams(useLocation().search);
+}
+
+
+const Sidebar = ({ onFilterChange, setDropdownValue, dropdownValue, depthValues, overviewStats }) => {
+    
+    const navigate = useNavigate();
+    const query = useQuery();
+
+    const [modelOptions, setModelOptions] = useState({});
+    let default_model = "efficientnet_b0"
+    const [selectedModel, setSelectedModel] = useState(query.get("model") || default_model);
+
+    // depth dropdown
     const handleDropdownChange = (event) => {
         setDropdownValue(event.target.value);
         onFilterChange({ dropdownValue: event.target.value });
     };
+    
+    // url parameters
+    useEffect(() => {
+      // Update the URL query parameter whenever the selected setting changes
+      console.log("url change", selectedModel)
+      navigate(`?model=${selectedModel}`, { replace: true });
 
-    const handleModelChange = (model_entry) => {
-        setSelectedModel(model_entry['label']) 
-        onFilterChange({ 'selectedModelPath': `${process.env.PUBLIC_URL}/data/model_specs/${model_entry["value"]}.json.gz` })
-    };
+      // send model path to main panel
+      onFilterChange({ 'selectedModelPath': `${process.env.PUBLIC_URL}/data/model_specs/${selectedModel}.json.gz` })
 
+    }, [selectedModel, navigate]);
+
+    // load model specs table of contents
     useEffect(() => {
         fetch(`${process.env.PUBLIC_URL}/data/model_specs_overview.json`) // overview index not compressed
         .then(response => response.json())
         .then(data => {
-            // let default_model = Object.keys(data)[0]
-            let default_model = "t5" //"maskrcnn_resnet50_fpn" 
-            console.log("json loaded", default_model)
-
-            setSelectedModel(default_model) // display name of model
-
             setModelOptions(data);
-            
-            // send model path to main panel
-            onFilterChange({ 'selectedModelPath': `${process.env.PUBLIC_URL}/data/model_specs/${data[default_model]}.json.gz` })
         });
 
     }, []);
@@ -42,7 +54,7 @@ const Sidebar = ({ onFilterChange, setDropdownValue, dropdownValue, depthValues,
                 <Autocomplete id="model" 
                     value={selectedModel} 
                     isOptionEqualToValue={(option, value) => option.label === value}
-                    onChange={(event, newValue) => handleModelChange(newValue)}
+                    onChange={(event, newValue) => setSelectedModel(newValue['label'])}
                     selectOnFocus
                     clearOnBlur
                     handleHomeEndKeys
