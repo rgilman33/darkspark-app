@@ -564,6 +564,7 @@ export function draw_nn() {
                     line_obj.geometry.setFromPoints(oldPts);
                 }))
 
+                // doesn't seem to strongly affect perf
                 line_obj.frustumCulled = false // needed this to prevent from flickering in and out. TODO fix the underlying issue
             
             curves_lookup[edge_id].edge_package = [line_obj, n0.x, n0.y, n1.x, n1.y] // keep position up to date. don't actually need to refresh curve

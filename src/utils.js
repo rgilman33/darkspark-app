@@ -50,6 +50,7 @@ export const plane_outline_color = new THREE.Color(...[58, 124, 165].map(d=>d/25
 
 export const DEBUG = true
 
+// doesn't seem to be much perf effect here if any
 export const CURVE_N_PTS = 20 //50
 
 export const MAX_SPHERE_SIZE = .32
@@ -585,6 +586,7 @@ export function nice_name(op) {
 ///////////////////////////////
 
 export function update_labels() {
+
     globals.ops_of_visible_nodes.forEach(op => {
         if ((globals.camera.zoom > 30 || (globals.camera.zoom > 20 && (op.node_type=="function" || op.node_type=="module"))) 
                 && op.should_draw 
@@ -598,7 +600,6 @@ export function update_labels() {
             }
         }
     })
-
 
     // TODO put all labels together, sort by priority, then draw whatever can
 

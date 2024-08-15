@@ -11,6 +11,7 @@ import * as utils from './utils'
 import { scene, globals } from './utils';
 import { CLICKABLE_LAYER } from './utils';
 import pako from 'pako';
+import Stats from 'three/addons/libs/stats.module.js';
 
 // minimap window
 const minimap_geometry = new THREE.PlaneGeometry(1, 1, 1, 1)
@@ -46,9 +47,13 @@ const minimap_renderer = new THREE.WebGLRenderer({ antialias: true });
 let minimap_total_height = 120
 let minimap_scrollbar_height = 6 // does not include outline
 
+let camera_pos_x
+let camera_pos_y
+let camera_zoom
 
 const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats }) => {
   const mountRef = useRef(null);
+  const statsRef = useRef(null);
   const minimapMountRef = useRef(null);
   const [hoveredObject, setHoveredObject] = useState(null);
   const [tooltipPosition, setTooltipPosition] = useState({ left: 0, top: 0 });
@@ -57,7 +62,6 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
   const [minimap_scrollbar_pos, setMinimapScrollbarPos] = useState({'left_perc':0, 'width_perc':0, 'display':'none', 'minimap_height':minimap_total_height});
 
   // remember this part of the code gets executed all the time. For one-time things on init, put in useEffect below
-
 
   ///////////////////////////////////////
   // Initialize scene once on page load
@@ -140,6 +144,11 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
     } );
 
 
+    // Set up stats
+    const stats = new Stats();
+    stats.showPanel(0); // Show FPS panel
+    statsRef.current.appendChild(stats.dom);
+
     
     //////////////////////////////////////////////////
     // Minimap
@@ -198,7 +207,6 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
             'display':'block',
             'minimap_height':(minimap_total_height-minimap_scrollbar_height)
           })
-
         } else {
           setMinimapScrollbarPos({
             'left_perc':0,
@@ -245,28 +253,51 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
     
     ///////////////////////////
     // Start animation loop
+    let camera_zoom_changed_counter = 0
     animate();
-
     function animate(time) {
-        requestAnimationFrame( animate );
+        stats.begin();
+        let camera = globals.camera
 
+        let camera_moved_or_zoomed = (camera_pos_x != camera.position.x) || (camera_pos_y != camera.position.y) || (camera_zoom != camera.zoom)
+        let camera_zoom_changed = (camera_zoom !== camera.zoom)
+        if (camera_zoom_changed) {
+          camera_zoom_changed_counter = 0
+        }
+
+        // this slows us down substantially during dragging, which is when we most need perf
         // minimap
         if (globals.nn) {
           if (minimap_window_is_dragging) {
             update_main_window_from_minimap_window()
+            render_minimap()
           } else {
-            update_minimap_window_from_main_window()
+            if (camera_moved_or_zoomed) {
+              update_minimap_window_from_main_window()
+              render_minimap()
+            }
           }
-          render_minimap()
         }
 
         TWEEN.update(time);
         controls.update();
         renderer.render( scene, camera );
-        labelRenderer.render( scene, camera );
-        if (globals.camera) {
-          utils.update_labels()
-        }
+
+        // // performance killers. sd at full goes from 30fps to 4fps
+        // labelRenderer.render( scene, camera );
+        // if (camera_zoom_changed_counter < 3000) { // five seconds at least? wtf?
+        //     utils.update_labels()
+        //     camera_zoom_changed_counter += 1
+        // }
+
+        // tracking if camera moved
+        camera_pos_x = camera.position.x
+        camera_pos_y = camera.position.y
+        camera_zoom = camera.zoom
+        
+        stats.end()
+
+        requestAnimationFrame( animate );
     }
 
     // Clean up on unmount
@@ -634,6 +665,8 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
 
 
             <div ref={mountRef} style={{ zIndex: 1, width: '100%', flex: 1 }}/>
+
+            <div ref={statsRef} style={{ zIndex: 2}} />
 
 
             {hoveredObject && (
