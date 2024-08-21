@@ -234,42 +234,43 @@ export function draw_nn() {
     nn.children.sort((a,b) => {return a.draw_order - b.draw_order})
     draw_op(nn)
 
-    ////////////////// color by op type
-    let op_color_lookup = {}
-    let feature_detector_ops = ["conv2d", "linear", "scaled_dot_product_attention", "embedding"]
-    feature_detector_ops.forEach(n => {
-        op_color_lookup[n] = new THREE.Color('green')
-    })
-    let norm_ops = ["layer_norm", "group_norm"]
-    norm_ops.forEach(n => {
-        op_color_lookup[n] = new THREE.Color('lightblue')
-    })
-    let activation_ops = ["silu", "relu", "gelu"]
-    activation_ops.forEach(n => {
-        op_color_lookup[n] = new THREE.Color('brown')
-    })
-    let arithmetic_ops = ["add", "mul", "div"]
-    arithmetic_ops.forEach(n => {
-        op_color_lookup[n] = new THREE.Color('black')
-    })
+    // ////////////////// color by op type
+    // let op_color_lookup = {}
+    // let feature_detector_ops = ["conv2d", "linear", "scaled_dot_product_attention", "embedding"]
+    // feature_detector_ops.forEach(n => {
+    //     op_color_lookup[n] = new THREE.Color('green')
+    // })
+    // let norm_ops = ["layer_norm", "group_norm"]
+    // norm_ops.forEach(n => {
+    //     op_color_lookup[n] = new THREE.Color('lightblue')
+    // })
+    // let activation_ops = ["silu", "relu", "gelu"]
+    // activation_ops.forEach(n => {
+    //     op_color_lookup[n] = new THREE.Color('brown')
+    // })
+    // let arithmetic_ops = ["add", "mul", "div"]
+    // arithmetic_ops.forEach(n => {
+    //     op_color_lookup[n] = new THREE.Color('black')
+    // })
 
-    function op_type_to_color(op) {
-        if (op.node_type=="module") {
-            return new THREE.Color('grey')
-        } else if (op.is_tensor_node) {
-            return new THREE.Color('lightgrey')
-        } else {
-            if (op.name in op_color_lookup) {
-                return op_color_lookup[op.name]
-            } else {
-                return new THREE.Color('lightblue')
-            }
-        }
-    }
-    globals.ops_of_visible_nodes.forEach(op => {
-        let node = op.mesh.children[0]
-        node.material.color = op_type_to_color(op)
-    })
+    // function op_type_to_color(op) {
+    //     if (op.node_type=="module") {
+    //         return new THREE.Color('grey')
+    //     } else if (op.is_tensor_node) {
+    //         return new THREE.Color('lightgrey')
+    //     } else {
+    //         if (op.name in op_color_lookup) {
+    //             return op_color_lookup[op.name]
+    //         } else {
+    //             return new THREE.Color('lightblue')
+    //         }
+    //     }
+    // }
+    // globals.ops_of_visible_nodes.forEach(op => {
+    //     let node = op.mesh.children[0]
+    //     node.material.color = op_type_to_color(op)
+    // })
+
 
     // ///////////////////////
     // // color by continuous
@@ -457,7 +458,7 @@ export function draw_nn() {
         } else if ("sparkflow" in n1) {
             sparkflow = n1["sparkflow"]
         }
-        let zoom_max_linewidth = utils.interp(camera.zoom, [10,50], [2.8, 20]) // max was at five
+        let zoom_max_linewidth = utils.interp(camera.zoom, [10,50], [2.8, 10]) // max was at five
         // TODO this won't update on zoom scroll, only when open or close.
         // if like this then attach listener to zoom event
 

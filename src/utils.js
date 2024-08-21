@@ -382,10 +382,10 @@ export function get_activation_volume(n, specs){
     sphere.rotation.x = -Math.PI / 2; // Rotate 90 degrees to make it face upward
     sphere.position.y += .1 // shift towards camera so doesn't overlap w edges
 
-    // // bc orthographic
-    // sphere.rotation.x += .3
-    // sphere.rotateOnWorldAxis(new THREE.Vector3(0, 0, 1), 0.3);
-    // // sphere.rotateOnWorldAxis(new THREE.Vector3(0, 1, 0), -.05);
+    // bc orthographic
+    sphere.rotation.x += .3
+    sphere.rotateOnWorldAxis(new THREE.Vector3(0, 0, 1), 0.3);
+    // sphere.rotateOnWorldAxis(new THREE.Vector3(0, 1, 0), -.05);
 
 
     sphere.scale.y = specs.height
@@ -760,17 +760,27 @@ export function get_ns(op, uns_or_dns) {
     ns = ns.filter(n => n != undefined) // was getting lots of undefineds from removing aux outputs
     return ns
 }
+// get nodes fns dominate timing
+export function get_downstream_peer_nodes(base_op) {
+    let all_dns = get_ns(base_op, "dns")
+    let just_peer_dns = all_dns.filter(dn => dn.parent_op.name==base_op.parent_op.name)
+    return just_peer_dns
+}
+export function get_upstream_peer_nodes(base_op) {
+    let all_uns = get_ns(base_op, "uns")
+    let just_peer_uns = all_uns.filter(un => un.parent_op.name==base_op.parent_op.name)
+    return just_peer_uns
+}
 
-export function get_downstream_nodes(base_op, ops) {
+export function get_downstream_nodes_from_group(base_op, ops) {
     return ops.filter(o => base_op.dns.includes(o.node_id))
 }
-export function get_upstream_nodes(base_op, ops) {
+export function get_upstream_nodes_from_group(base_op, ops) {
     return ops.filter(o => base_op.uns.includes(o.node_id))
 }
 
-export function get_node(nid, ns) {
-    return ns.filter(n => n.node_id==nid)[0]
-}
+
+
 
 export function collapse_to_depth(level) {
     let ops_to_collapse = []

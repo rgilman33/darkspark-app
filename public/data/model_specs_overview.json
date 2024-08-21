@@ -173,5 +173,11 @@
     "perceiver": "perceiver",
     "t5": "t5",
     "florence-2-base": "florence-2-base",
-    "sd3": "sd3"
+    "sd3": "sd3",
+    "mask2former": "mask2former",
+    "mask2former-swin-large-ade-semantic": "mask2former-swin-large-ade-semantic",
+    "marigold": "marigold",
+    "rtdetr_r50vd": "rtdetr_r50vd",
+    "upernet-convnext-tiny": "upernet-convnext-tiny",
+    "vit-msn-small": "vit-msn-small"
 }

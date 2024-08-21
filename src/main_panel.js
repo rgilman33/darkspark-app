@@ -645,10 +645,12 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
     // }
   }
 
-  let tooltip_attrs_list = ['node_id', "dist_from_end_global", "respath_dist", "row_counter", "draw_order_row",
-        "mod_outputs", "input_group_ix",
+  let tooltip_attrs_list = ['node_id', "dist_from_end_originator_count", "dist_from_end_global", "respath_dist", 
+        "dist_from_start_originator_count", "dist_from_start_global",
+        "row_counter", "draw_order_row",
+        "mod_outputs", "input_group_ix", "input_group_sub_ix",
         'n_ops', 'depth', 'input_shapes', 'output_shapes', 'is_output_global', 
-        "sparkflow", "params", "incremental_memory_usage", "max_memory_allocated", "latency", "n_params"]
+        "sparkflow", "params", "incremental_memory_usage", "max_memory_allocated", "latency", "n_params", "mod_inputs"]
 
 
   return <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>

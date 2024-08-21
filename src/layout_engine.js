@@ -140,12 +140,29 @@ export default function recompute_layout() {
         // That's what we're doing below.
         
         // relative X 
+
+
+        // this is the same as is implemented in the fronted, first a normal pass for standard inputs which cling to the left,
+        // then a costlier pass only for freshies, to allow them to not cling to left, to attach branch where required 
+        // freshie pass is possible to use for all inputs, but is almost 100x more costly in terms of latency, i believe bc of all the 
+        // frequent bringing forward of branches ie looping through all peers, though this hypths is not tested
+        op.children.forEach(o => {
+            o.x_nudge_traversed = false
+            o.x_relative = -1e6
+            o.x_relative_fully_marked = false
+        })
+
         let input_ops = op.children.filter(o => o.is_input); input_ops.sort((a,b)=>a.input_priority - b.input_priority)
-        op.children.forEach(o => o.x_nudge_traversed = false)
+        
+        let input_ops_global = input_ops.filter(o => o.is_global_input)
+        let input_ops_standard = input_ops.filter(o => !o.is_global_input)
+
+        ///////////////////
+        // old version
         function nudge_forward_dns(op_whose_dns_to_nudge) {
             op_whose_dns_to_nudge.x_nudge_traversed = true
 
-            let dns = utils.get_downstream_nodes(op_whose_dns_to_nudge, op.children)
+            let dns = utils.get_downstream_peer_nodes(op_whose_dns_to_nudge)
             dns.forEach(dn => {
                 let x_threshold = op_whose_dns_to_nudge.x_relative + op_whose_dns_to_nudge.w
                 if (dn.is_activation_volume) {
@@ -154,6 +171,7 @@ export default function recompute_layout() {
                 }
                 if (dn.x_relative <= x_threshold) {
                     dn.x_relative = x_threshold + 1
+                    dn.x_relative_fully_marked = true // needed for below, not when used in isolation
                     dn.history_js.push("JS x nudged forward by "+utils.nice_name(op_whose_dns_to_nudge)+" "+x_threshold+" "+dn.x_relative)
                     nudge_forward_dns(dn)
                 } else if (!dn.x_nudge_traversed) { // NOTE densenet was giving bug here, taking forever, not recursed but so many retreading. This prevents from retreading ground unless necessary
@@ -161,8 +179,75 @@ export default function recompute_layout() {
                 }
             })
         }
-        input_ops.forEach(o => nudge_forward_dns(o))
+        input_ops_standard.forEach(o => nudge_forward_dns(o))
+        ///////////////////
+
+        ///////////////////
+        // new version
+        // marking forward then when hitting already marked, shifts entire branch up to meet it, clumps to the right
+        function mark_next_x_pos(op_whose_dns_to_nudge) {
+            let dns = utils.get_downstream_peer_nodes(op_whose_dns_to_nudge, op.children)
+            dns.forEach(dn => {
+                if (dn.x_relative_fully_marked) {
+                    let to_shift = dn.x_relative - op_whose_dns_to_nudge.x_relative
+                    to_shift -= 1
+                    to_shift -= op_whose_dns_to_nudge.w
+                    if (dn.is_activation_volume){
+                        to_shift -= Math.round(dn.activation_volume_specs.depth) 
+                    }
+                    to_shifts.push(to_shift)
+                } else {
+                    let x_threshold = op_whose_dns_to_nudge.x_relative + op_whose_dns_to_nudge.w
+                    if (dn.is_activation_volume) {
+                        x_threshold += Math.round(dn.activation_volume_specs.depth) 
+                        // occ uses array, so int for ix. Can undo the round when occ is more flexible TODO NOTE NOTE
+                    }
+                    if (dn.x_relative <= x_threshold) {
+                        dn.x_relative = x_threshold + 1
+                        nodes_in_this_input_group.push(dn)
+                        dn.history_js.push("JS x nudged forward by "+utils.nice_name(op_whose_dns_to_nudge)+" "+x_threshold+" "+dn.x_relative)
+                        mark_next_x_pos(dn)
+                    } else if (!dn.x_nudge_traversed) { // NOTE densenet was giving bug here, taking forever, not recursed but so many retreading. This prevents from retreading ground unless necessary
+                        mark_next_x_pos(dn)
+                    }
+                }
+            })
+        }
+        let to_shifts, nodes_in_this_input_group
+        input_ops_global.forEach(o => {
+            to_shifts = []; nodes_in_this_input_group = [o] // to be filled out in mark_next_x_pos
+            let P = 1e6
+            o.x_relative = -P
+            mark_next_x_pos(o)
+            let to_shift = to_shifts.length==0 ? P : Math.min(...to_shifts) // on first pass through module will be no diffs, so align to zero 
+            
+            nodes_in_this_input_group.forEach(n => n.marked_for_this_round = false)
+            nodes_in_this_input_group.forEach(n => {
+                if (!n.marked_for_this_round) {
+                    n.x_relative += to_shift
+                    n.x_relative_fully_marked = true
+                    n.marked_for_this_round = true // same node may be pushed in multiple times
+                }
+            })
+        })
+        ////////////////////////
+
+
+        ////
+        // shift all to start at zero
+        let input_min_x = Math.min(...input_ops.map(o=>o.x_relative))
+        op.children.forEach(c => {
+            c.x_relative -= input_min_x
+        })
+        // make sure all standard inputs are on the left. Global inputs remain where they were
+        input_ops.forEach(o => {
+            if (!o.is_global_input) {
+                o.x_relative = 0
+            }
+        })
         
+
+
         // Moving all output nodes to the right edge of expanded box
         // but only if they're not a module, ie if they're one of the single output ops we created ourselves
         let max_x = Math.max(...op.children.map(o => o.x_relative))
@@ -174,18 +259,21 @@ export default function recompute_layout() {
         // Keep extension / branch nodes one behind their target downstream node, as that is their purpose
         op.children.filter(o=>["extension", "elbow"].includes(o.node_type)).forEach(branch_node => {
             if (!branch_node.pre_elbow) {
-                let branch_dns = branch_node.dn_ids.map(nid => utils.get_node(nid, op.children))
+                let branch_dns = branch_node.dn_ids.map(nid => globals.nodes_lookup[nid])
                 let min_x = Math.min(...branch_dns.map(o => o.x_relative))
                 branch_node.x_relative = min_x - 1
                 branch_node.history_js.push("moving extension to stay one less than dn")
             } else { // is pre elbow
-                let un = utils.get_node(branch_node.uns[0], op.children) // will only be one
+                let nid = branch_node.uns[0] // will only be one
+                let un = globals.nodes_lookup[nid] 
                 branch_node.x_relative = un.x_relative + 1
                 branch_node.history_js.push("moving pre-elbow to stay one more than un") 
             }
         }) 
         // TODO do this each time we nudge a node forward. It should bring it's preceding elbow / ext with it
         // so that other nodes can also respond
+
+
 
 
         ////////////////////////////////////////////////
@@ -210,7 +298,7 @@ export default function recompute_layout() {
             row.nodes.sort((a,b) => a.x_relative - b.x_relative)
             let first_op = row.nodes[0]
 
-            let uns = utils.get_upstream_nodes(first_op, op.children) // all the way from dispatching node, relevent in eg stylegan when it is input
+            let uns = utils.get_upstream_peer_nodes(first_op) // all the way from dispatching node, relevent in eg stylegan when it is input
             if (uns.length==1 && uns[0].node_type=="input") { 
                 // Total hack for now. Only affects stylegan as far as i know. TODO NOTE NOTE don't know if this affects non inputs. See notes below
                 // let un_max_x = Math.max(...uns.map(un => un.x_relative)) // when will there be multiple? should this be min? NOTE NOTE pay attn
@@ -233,7 +321,7 @@ export default function recompute_layout() {
 
 
             let last_op = row.nodes[row.nodes.length-1]
-            let dns = utils.get_downstream_nodes(last_op, op.children) // all the way till terminating node, ie not just row itself
+            let dns = utils.get_downstream_peer_nodes(last_op) // all the way till terminating node, ie not just row itself
             let dn_max_x = Math.max(...dns.map(dn => dn.x_relative))
 
             let until = last_op.x_relative + last_op.w
@@ -310,7 +398,7 @@ export default function recompute_layout() {
                     })
                     c_sub_inputs.sort((a,b) => a.y_relative_grandparent - b.y_relative_grandparent) 
                     c_sub_inputs.forEach(input_node => {
-                        let uns = utils.get_upstream_nodes(input_node, op.children) // the upstream op back in the current peer op group
+                        let uns = utils.get_upstream_nodes_from_group(input_node, op.children) // the upstream op back in the current peer op group
                         if (uns.length==1) {
 
                             let id_of_incoming_row = uns[0].draw_order_row
@@ -336,7 +424,7 @@ export default function recompute_layout() {
                     })
                     c_sub_inputs.sort((a,b) => a.y_relative_grandparent - b.y_relative_grandparent) 
                     c_sub_inputs.forEach(input_node => {
-                        let uns = utils.get_downstream_nodes(input_node, op.children) // the upstream op back in the current peer op group
+                        let uns = utils.get_downstream_nodes_from_group(input_node, op.children) // the upstream op back in the current peer op group
                         if (uns.length==1) {
 
                             let id_of_incoming_row = uns[0].draw_order_row
@@ -375,7 +463,7 @@ export default function recompute_layout() {
             op.children.forEach(o => {
                 if (o.is_output) { 
                     
-                    let uns = utils.get_upstream_nodes(o, op.children)
+                    let uns = utils.get_upstream_peer_nodes(o)
                     if ((uns.length==1) && uns[0].is_tensor_node && !uns[0].is_activation_volume) {
     
                         o.x_relative -= 2 //1.8 //.9
@@ -388,7 +476,7 @@ export default function recompute_layout() {
                 } 
                 else if (o.is_input) {
 
-                    let dns = utils.get_downstream_nodes(o, op.children) 
+                    let dns = utils.get_downstream_peer_nodes(o) 
 
                     if (dns.length>1 || o.is_global_input) {
                         input_nodes_can_be_removed = false
