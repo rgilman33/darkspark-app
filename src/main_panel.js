@@ -21,6 +21,7 @@ const minimap_material = new THREE.MeshBasicMaterial({
   opacity: 0.4
 });
 let minimap_window = new THREE.Mesh(minimap_geometry, minimap_material);
+minimap_window.layers.set(utils.MINIMAP_OBJECTS_LAYER)
 minimap_window.rotation.x = -Math.PI/2
 let minimap_window_is_dragging = false
 
@@ -93,8 +94,12 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
       0.1, 1000
     );
     // Enable both default layer and clickable layer on the camera
-    minimap_camera.layers.enable(0); // Default layer
-    minimap_camera.layers.enable(CLICKABLE_LAYER);
+    // minimap_camera.layers.enable(0); // Default layer
+    minimap_camera.layers.enable(utils.MINIMAP_OBJECTS_LAYER);
+    minimap_camera.layers.disable(0);
+    minimap_camera.layers.disable(CLICKABLE_LAYER);
+
+
     minimap_camera.position.set(0, MINIMAP_CAMERA_HEIGHT, 0 );
     minimap_camera.zoom = 10 // for 2d
     minimap_camera.lookAt(0, 0, 0); // this is needed prob bc no orbitcontrols, so point camera at origin
@@ -102,6 +107,7 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
     // Enable both default layer and clickable layer on the camera
     camera.layers.enable(0); // Default layer
     camera.layers.enable(CLICKABLE_LAYER);
+    camera.layers.enable(utils.MINIMAP_OBJECTS_LAYER);
     camera.position.set(0, MAIN_CAMERA_HEIGHT, 0 );
     camera.zoom = 28 // for 2d
 
@@ -122,6 +128,12 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
     // note this is added to labelrenderer dom, otherwise can't use it. If no labelrendered, use renderer dom
     controls.enableRotate = false; // Disable rotation
     controls.screenSpacePanning = true; // Allow panning in screen space
+    
+    // update labels after controls moves
+    controls.addEventListener( 'end', function ( event ) {
+      console.log("orbitcontrols end")
+      utils.update_labels()
+    } );
 
     // // middle btn pan, like blender and apparently adobe suite. Zoom still works as expected. I don't like this bc btn harder to press
     // right click is easier. Though maybe i'm just used to it?
@@ -134,14 +146,17 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
     /////
     drag_controls = new DragControls( [ minimap_window ], minimap_camera, minimap_renderer.domElement );
     drag_controls.addEventListener( 'dragstart', function ( event ) {
-      // console.log("dragstart")
+      console.log("minimap window dragstart")
       minimap_window_is_dragging = true
     } );
     
     drag_controls.addEventListener( 'dragend', function ( event ) {
-      // console.log("dragend")
+      console.log("minimap window dragend")
       minimap_window_is_dragging = false
+      utils.update_labels()
     } );
+
+    drag_controls.getRaycaster().layers.set(utils.MINIMAP_OBJECTS_LAYER)
 
 
     // Set up stats
@@ -228,18 +243,8 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
         minimap_renderer.render(scene, minimap_camera);
     }
 
-    function get_main_window_position() {
-      const h_width = camera.right / camera.zoom;
-      const h_height = camera.top / camera.zoom;
-  
-      let cx = camera.position.x
-      let cz = camera.position.z
-      
-      return [h_width, h_height, cx, cz];
-    }
-
     function update_minimap_window_from_main_window() {
-      let [h_width, h_height, cx, cz] = get_main_window_position()
+      let [h_width, h_height, cx, cz] = utils.get_main_window_position()
       minimap_window.scale.x = h_width*2; minimap_window.scale.y = h_height*2; minimap_window.scale.z = 1
       minimap_window.position.x = cx; minimap_window.position.z = cz; 
       minimap_window.position.y = MAIN_CAMERA_HEIGHT + 1 // slightly higher than main camera. Can also just make not visible to main camera  
@@ -282,52 +287,8 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
         renderer.render( scene, camera );
 
         // // performance killers. sd at full goes from 30fps to 4fps on big computer. Mostly the update_labels fn
+        // now w label pool we're at slightly less than 20fps
         labelRenderer.render( scene, camera );
-        utils.update_labels() // group labels
-
-        if (camera_moved_or_zoomed) {
-          let onscreen_ops = []
-          let [h_width, h_height, cx, cz] = get_main_window_position()
-          let screen_left = cx-h_width; let screen_right = cx+h_width; let screen_top = cz+h_height; let screen_bottom = cz-h_height
-          globals.ops_of_visible_nodes.forEach(op => {
-            if ((op.x > screen_left) && (op.x < screen_right) && (op.y>screen_bottom) && (op.y<screen_top)) {
-              op.is_on_screen = true
-              onscreen_ops.push(op)
-
-              ////////////////////
-              if (!op.node_label) {
-                let label = globals.labels_pool.pop()
-                label.position.set(op.x, 0, op.y)
-                label.element.innerHTML = op.name
-                op.node_label = label
-              }
-              ////////////////////
-
-            } else {
-              op.is_on_screen = false
-
-              ////////////////////
-              if (op.node_label) {
-                globals.labels_pool.push(op.node_label)
-                op.node_label = undefined
-              }
-              /////////////////////
-            }
-          })
-        }
-        // globals.ops_of_visible_nodes.forEach(op => {
-        //     if ((globals.camera.zoom > 30 || (globals.camera.zoom > 20 && (op.node_type=="function" || op.node_type=="module"))) 
-        //             && op.should_draw 
-        //         ) {
-        //         if (op.node_label != undefined) {
-        //             op.node_label.element.style.display = 'block'
-        //         }
-        //     } else {
-        //         if (op.node_label != undefined) {
-        //             op.node_label.element.style.display = 'none'
-        //         }
-        //     }
-        // })
 
         //////
 
@@ -460,6 +421,7 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
                 utils.mark_attr(n, "originating_position", {x:n.x, y:0, z:n.y})
                 recompute_layout()
                 draw_nn()
+                utils.update_labels()
                 utils.mark_attr(n, "originating_position", undefined)
             }
 
@@ -489,6 +451,7 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
               utils.remove_all_meshes(op, {x:op.x, y:0, z:op.y}) // remove the physical meshes
             }
             draw_nn()
+            utils.update_labels()
             utils.mark_attr(op, "terminating_position", undefined)
             delete op.is_in_process_of_collapsing
         }
@@ -622,6 +585,9 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
                 camera.zoom = default_zoom
                 camera.updateProjectionMatrix()
 
+                // draw labels. they'll keep themselves updated after this using listeners, but need to do first draw 
+                utils.update_labels()
+
                 //////////////////
                 //
                 let total_params = 0
@@ -657,6 +623,7 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
             utils.collapse_to_depth(level)
             recompute_layout()
             draw_nn()
+            utils.update_labels()
         }
         _collapse_to_depth(filters.dropdownValue)
     }

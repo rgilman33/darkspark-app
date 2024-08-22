@@ -63,14 +63,17 @@ export function draw_nn() {
                     if (op.is_in_process_of_collapsing) {
                         let sx = sphere.scale.x; let sy = sphere.scale.y; let sz = sphere.scale.z
                         sphere.scale.x = 0; sphere.scale.y = 0; sphere.scale.z = 0
-                        let orig_label = op.node_label.element.innerText
-                        op.node_label.element.innerText = "" 
+
+                        // TODO put this back in now that updated w labels_pool
+
+                        // let orig_label = op.node_label.element.innerText
+                        // op.node_label.element.innerText = "" 
 
                         all_tweens.push(new TWEEN.Tween(sphere.scale)
                             .to({x:sx, y:sy, z:sz}, TWEEN_MS) 
                             .easing(TWEEN_EASE)
                             .onComplete(() => {
-                                op.node_label.element.innerText = orig_label
+                                // op.node_label.element.innerText = orig_label
                             }))
                     }
                 } else { // from expanding op

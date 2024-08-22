@@ -23,6 +23,7 @@ export let globals = {
     nn: undefined,
     mount: undefined,
 }
+export const MINIMAP_OBJECTS_LAYER = 3
 
 export let scene = new THREE.Scene();
 scene.background = new THREE.Color(...[248, 249, 250].map(d => d/255));
@@ -127,6 +128,7 @@ export function get_line_from_pts(pts, linewidth, color) {
 	const line_geometry = new THREE.BufferGeometry().setFromPoints(pts);
 	const material = new THREE.LineBasicMaterial( { color: color, linewidth:linewidth } );
 	const lineObject = new THREE.Line(line_geometry, material);
+    lineObject.layers.set(MINIMAP_OBJECTS_LAYER)
 
 	return lineObject
 }
@@ -286,40 +288,6 @@ export function get_group_label(op) {
 }
 
 
-//////////////
-
-// function get_ops_of_onscreen_nodes
-// globals.ops_of_visible_nodes
-//////////////
-export function populate_labels_pool() {
-    globals.labels_pool = []
-    let N_LABELS_IN_POOL = 100
-    for (let i=0; i<N_LABELS_IN_POOL; i++) {
-    
-        const div = document.createElement( 'div' );
-        div.className = 'label';
-        let text = 'placeholder'
-    
-        div.innerHTML = text
-    
-        div.style.display = 'none' // init to none, will show when close enough
-        div.style.backgroundColor = 'transparent';
-    
-        const label = new CSS2DObject( div );
-
-        label.element.innerHTML = "ppp"
-    
-        // label.position.set( 0,0,0 );
-        
-        label.center.set( .5, 1.1 ); // above node, centered horizontally
-        
-        scene.add(label)
-    
-        globals.labels_pool.push(label)
-    }
-}
-
-
 export function get_text(op) {
 	const div = document.createElement( 'div' );
 	div.className = 'label';
@@ -434,9 +402,9 @@ export function get_activation_volume(n, specs){
     group.add(sphere)
 
     if (n.should_draw){
-        let text = get_text(n)
-        group.add(text)
-        n.node_label = text
+        // let text = get_text(n)
+        // group.add(text)
+        // n.node_label = text
 
         // Create a larger sphere for click events
         let largerSphere = new THREE.Mesh(sphere_geometry,
@@ -671,25 +639,85 @@ export function nice_name(op) {
 // Label visibility
 ///////////////////////////////
 
-export function update_labels() {
+export function populate_labels_pool() {
+    globals.labels_pool = []
+    globals.all_labels = []
+    let N_LABELS_IN_POOL = 150
+    for (let i=0; i<N_LABELS_IN_POOL; i++) {
+    
+        const div = document.createElement( 'div' );
+        div.className = 'label';
+        let text = 'placeholder'
+    
+        div.innerHTML = text
+    
+        div.style.backgroundColor = 'transparent';
+    
+        const label = new CSS2DObject( div );
 
-    // nodes
-    // globals.ops_of_visible_nodes.forEach(op => {
-    //     if ((globals.camera.zoom > 30 || (globals.camera.zoom > 20 && (op.node_type=="function" || op.node_type=="module"))) 
-    //             && op.should_draw 
-    //         ) {
-    //         if (op.node_label != undefined) {
-    //             op.node_label.element.style.display = 'block'
-    //         }
-    //     } else {
-    //         if (op.node_label != undefined) {
-    //             op.node_label.element.style.display = 'none'
-    //         }
-    //     }
-    // })
+        label.element.innerHTML = "ppp"
+        // label.element.style.display = "none" // this wasn't doing it, have to set label.visible
+        label.visible = false
+    
+        label.position.set( Math.random(),0,Math.random()-2 );
+        
+        label.center.set( .5, 1.1 ); // above node, centered horizontally
+        let label_id = i
+        label.label_id = label_id
 
-    // TODO put all labels together, sort by priority, then draw whatever can
+        scene.add(label)
+    
+        globals.labels_pool.push(label)
+        globals.all_labels.push(label)
+    }
+}
 
+
+function remove_label_from_op_and_return_to_pool(op) {
+    let label = op.active_node_label
+    // label.element.style.display = 'none' doesn't work, that wasted an hour
+    label.visible = false // i think this overrides manually setting it. Have to do it this way. 
+    globals.labels_pool.push(label)
+    op.active_node_label = undefined
+    label.current_op = undefined
+}
+function update_nodes_labels() {
+    let [h_width, h_height, cx, cz] = get_main_window_position()
+    let bh = 3; let bv = 1.5 // scaling to give buffer to count as 'on screen' to put labels in place before they scroll into view.
+    let screen_left = cx-h_width*bh; let screen_right = cx+h_width*bh; let screen_top = cz+h_height*bv; let screen_bottom = cz-h_height*bv
+    globals.ops_of_visible_nodes.forEach(op => {
+      let is_onscreen = (op.x > screen_left) && (op.x < screen_right) && (op.y>screen_bottom) && (op.y<screen_top)
+      let zoomed_enough = (globals.camera.zoom > 30 || (globals.camera.zoom > 20 && (op.node_type=="function" || op.node_type=="module")))
+      if (is_onscreen && zoomed_enough && op.should_draw) {
+        if (!op.active_node_label) {
+          let label = globals.labels_pool.pop()
+          if (label) {
+            label.position.set(op.x, 0, op.y)
+            label.element.innerHTML = op.name
+            // label.element.style.display = 'block'
+            label.visible = true
+            op.active_node_label = label
+            label.current_op = op
+          } else {
+            console.log("label pool empty")
+          }
+        }
+      } else {
+        if (op.active_node_label) {
+            remove_label_from_op_and_return_to_pool(op)
+        }
+      }
+    })
+
+    // only needed after collapse or expansion, not during controls. Could be separate fn but shouldn't be expensive bc not too many in all_labels
+    globals.all_labels.forEach(label => {
+        if (label.current_op && !label.current_op.is_currently_visible_node) {
+            remove_label_from_op_and_return_to_pool(label.current_op)
+        }
+    })
+  }
+
+function update_planes_labels() { // only planes now
 
     //////////////
     // planes
@@ -702,7 +730,8 @@ export function update_labels() {
             globals.camera.zoom > 7 && op.n_ops > 24) {
             consider_drawing.push(op)
         } else {
-            op.expanded_plane_label.element.style.display = 'none';
+            // op.expanded_plane_label.element.style.display = 'none';
+            op.expanded_plane_label.visible = false;
         }
     })
 
@@ -730,7 +759,8 @@ export function update_labels() {
     
     // Reset all labels to be visible initially
     consider_drawing.forEach(op => {
-        op.expanded_plane_label.element.style.display = 'block';
+        // op.expanded_plane_label.element.style.display = 'block'; // doesn't work, have to set visible
+        op.expanded_plane_label.visible = true;
     });
     
     const labelRects = consider_drawing.map(op => {
@@ -756,17 +786,32 @@ export function update_labels() {
             const rect2 = labelRects[j];
             if (checkOverlap(rect1, rect2)) {
                 let to_hide = low_priority_names.includes(rect1.name) ? rect1 : rect2
-                to_hide.label.element.style.display = 'none'; // Hide the overlapping label
+                // to_hide.label.element.style.display = 'none'; // Hide the overlapping label
+                to_hide.label.visible = false; // Hide the overlapping label
             }
         }
     }
 
 }
 
+export function update_labels() {
+    update_nodes_labels()
+    update_planes_labels()
+}
 
 ///////////////////////////////
 // utils
 ///////////////////////////////
+
+export function get_main_window_position() {
+    const h_width = globals.camera.right / globals.camera.zoom;
+    const h_height = globals.camera.top / globals.camera.zoom;
+
+    let cx = globals.camera.position.x
+    let cz = globals.camera.position.z
+    
+    return [h_width, h_height, cx, cz];
+  }
 
 export function mark_attr(op, attr, value) {
     // mark this op and all its children
