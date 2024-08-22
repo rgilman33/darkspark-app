@@ -255,7 +255,6 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
     
     ///////////////////////////
     // Start animation loop
-    let camera_zoom_changed_counter = 0
     animate();
     function animate(time) {
         stats.begin();
@@ -263,9 +262,6 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
 
         let camera_moved_or_zoomed = (camera_pos_x != camera.position.x) || (camera_pos_y != camera.position.y) || (camera_zoom != camera.zoom)
         let camera_zoom_changed = (camera_zoom !== camera.zoom)
-        if (camera_zoom_changed) {
-          camera_zoom_changed_counter = 0
-        }
 
         // this slows us down substantially during dragging, which is when we most need perf
         // minimap
@@ -287,10 +283,53 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
 
         // // performance killers. sd at full goes from 30fps to 4fps on big computer. Mostly the update_labels fn
         labelRenderer.render( scene, camera );
-        // if (camera_zoom_changed_counter < 3000) { // five seconds at least? wtf? even that doesn't work on smaller computer
-            utils.update_labels()
-            camera_zoom_changed_counter += 1
-        // }
+        utils.update_labels() // group labels
+
+        if (camera_moved_or_zoomed) {
+          let onscreen_ops = []
+          let [h_width, h_height, cx, cz] = get_main_window_position()
+          let screen_left = cx-h_width; let screen_right = cx+h_width; let screen_top = cz+h_height; let screen_bottom = cz-h_height
+          globals.ops_of_visible_nodes.forEach(op => {
+            if ((op.x > screen_left) && (op.x < screen_right) && (op.y>screen_bottom) && (op.y<screen_top)) {
+              op.is_on_screen = true
+              onscreen_ops.push(op)
+
+              ////////////////////
+              if (!op.node_label) {
+                let label = globals.labels_pool.pop()
+                label.position.set(op.x, 0, op.y)
+                label.element.innerHTML = op.name
+                op.node_label = label
+              }
+              ////////////////////
+
+            } else {
+              op.is_on_screen = false
+
+              ////////////////////
+              if (op.node_label) {
+                globals.labels_pool.push(op.node_label)
+                op.node_label = undefined
+              }
+              /////////////////////
+            }
+          })
+        }
+        // globals.ops_of_visible_nodes.forEach(op => {
+        //     if ((globals.camera.zoom > 30 || (globals.camera.zoom > 20 && (op.node_type=="function" || op.node_type=="module"))) 
+        //             && op.should_draw 
+        //         ) {
+        //         if (op.node_label != undefined) {
+        //             op.node_label.element.style.display = 'block'
+        //         }
+        //     } else {
+        //         if (op.node_label != undefined) {
+        //             op.node_label.element.style.display = 'none'
+        //         }
+        //     }
+        // })
+
+        //////
 
         // tracking if camera moved
         camera_pos_x = camera.position.x
@@ -472,7 +511,7 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
 
         utils.globals.curves_lookup = {} // have to reset this so as to not track. All curves have already been removed from scene above
 
-
+        utils.populate_labels_pool()
 
     
         fetch(filters.selectedModelPath)

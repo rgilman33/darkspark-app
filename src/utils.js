@@ -286,30 +286,39 @@ export function get_group_label(op) {
 }
 
 
-// //////////////
+//////////////
 
-// // function get_ops_of_onscreen_nodes
-// // globals.ops_of_visible_nodes
-// //////////////
-// globals.labels_pool = []
+// function get_ops_of_onscreen_nodes
+// globals.ops_of_visible_nodes
+//////////////
+export function populate_labels_pool() {
+    globals.labels_pool = []
+    let N_LABELS_IN_POOL = 100
+    for (let i=0; i<N_LABELS_IN_POOL; i++) {
+    
+        const div = document.createElement( 'div' );
+        div.className = 'label';
+        let text = 'placeholder'
+    
+        div.innerHTML = text
+    
+        div.style.display = 'none' // init to none, will show when close enough
+        div.style.backgroundColor = 'transparent';
+    
+        const label = new CSS2DObject( div );
 
-// for (let i=0; i<50; i++) {
+        label.element.innerHTML = "ppp"
+    
+        // label.position.set( 0,0,0 );
+        
+        label.center.set( .5, 1.1 ); // above node, centered horizontally
+        
+        scene.add(label)
+    
+        globals.labels_pool.push(label)
+    }
+}
 
-//     const div = document.createElement( 'div' );
-// 	div.className = 'label';
-//     let text = 'placeholder'
-
-//     div.innerHTML = text
-
-//     div.style.display = 'none' // init to none, will show when close enough
-// 	div.style.backgroundColor = 'transparent';
-
-// 	const label = new CSS2DObject( div );
-// 	// label.position.set( 0, 0, 0 );
-//     label.center.set( .5, 1.1 ); // above node, centered horizontally
-
-//     globals.labels_pool.push(label)
-// }
 
 export function get_text(op) {
 	const div = document.createElement( 'div' );
@@ -321,7 +330,6 @@ export function get_text(op) {
         "spatial":"blue",
         "batch":"purple"
     }
-    // if (op.is_tensor_node){
     if (["mod_out", "fn_out"].includes(op.node_type) || op.is_global_input){
         if ("dim_types" in op) {
             let span = document.createElement('span');
@@ -362,11 +370,6 @@ export function get_text(op) {
         if ("action_along_dim_type" in op) {
             text += (" ("+op.action_along_dim_type+")")
         }
-        // if (op.collapsed_ops){
-        //     op.collapsed_ops.forEach(collapsed_op_name => {
-        //         text += ("<br>"+collapsed_op_name)
-        //     })
-        // }
         div.innerHTML = text
     } 
 
@@ -497,9 +500,10 @@ export function get_sphere_group(n){
     group.add(sphere)
 
     if (n.should_draw){
-        let text = get_text(n)
-        group.add(text)
-        n.node_label = text
+
+        // let text = get_text(n)
+        // group.add(text)
+        // n.node_label = text
 
         // Create a larger sphere for click events
         let largerSphere = new THREE.Mesh(sphere_geometry,
@@ -669,22 +673,26 @@ export function nice_name(op) {
 
 export function update_labels() {
 
-    globals.ops_of_visible_nodes.forEach(op => {
-        if ((globals.camera.zoom > 30 || (globals.camera.zoom > 20 && (op.node_type=="function" || op.node_type=="module"))) 
-                && op.should_draw 
-            ) {
-            if (op.node_label != undefined) {
-                op.node_label.element.style.display = 'block'
-            }
-        } else {
-            if (op.node_label != undefined) {
-                op.node_label.element.style.display = 'none'
-            }
-        }
-    })
+    // nodes
+    // globals.ops_of_visible_nodes.forEach(op => {
+    //     if ((globals.camera.zoom > 30 || (globals.camera.zoom > 20 && (op.node_type=="function" || op.node_type=="module"))) 
+    //             && op.should_draw 
+    //         ) {
+    //         if (op.node_label != undefined) {
+    //             op.node_label.element.style.display = 'block'
+    //         }
+    //     } else {
+    //         if (op.node_label != undefined) {
+    //             op.node_label.element.style.display = 'none'
+    //         }
+    //     }
+    // })
 
     // TODO put all labels together, sort by priority, then draw whatever can
 
+
+    //////////////
+    // planes
     // Only consider if within distance
     let consider_drawing = []
     globals.ops_of_visible_planes.forEach(op => {
