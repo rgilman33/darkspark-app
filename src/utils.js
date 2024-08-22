@@ -3,6 +3,11 @@ import { CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer';
 
 import * as TWEEN from '@tweenjs/tween.js';
 
+import { Line2 } from 'three/examples/jsm/lines/Line2';
+import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial';
+import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry';
+
+
 ///////////////////////////////
 // globals
 ///////////////////////////////
@@ -117,6 +122,7 @@ export function get_pts_for_flat_line(pt1, pt2) {
     ]
     return pts
 }
+// normal line is constant width in most browsers despite setting thickness
 export function get_line_from_pts(pts, linewidth, color) {
 	const line_geometry = new THREE.BufferGeometry().setFromPoints(pts);
 	const material = new THREE.LineBasicMaterial( { color: color, linewidth:linewidth } );
@@ -124,6 +130,35 @@ export function get_line_from_pts(pts, linewidth, color) {
 
 	return lineObject
 }
+
+// // Line2 supports line width, which we're finding to be very helpful for understanding
+// export function get_line_from_pts(pts, linewidth, color) {
+//     // Convert the points array into a flat array of coordinates
+//     const positions = [];
+//     pts.forEach(pt => {
+//         positions.push(pt.x, pt.y, pt.z);
+//     });
+
+//     // Create the LineGeometry and set the positions
+//     const lineGeometry = new LineGeometry();
+//     lineGeometry.setPositions(positions);
+
+//     // Create the LineMaterial with specified color and linewidth
+//     const material = new LineMaterial({
+//         color: color,
+//         linewidth: linewidth,  // Line width in world units
+//         dashed: false,         // Optional: set to true if you want a dashed line
+//     });
+
+//     // Ensure material is updated before rendering
+//     // material.resolution.set(window.innerWidth, window.innerHeight);
+
+//     // Create the Line2 object using the geometry and material
+//     const lineObject = new Line2(lineGeometry, material);
+
+//     return lineObject;
+// }
+
 
 export function get_edge_pts(n0, n1) {
     let same_y = DEBUG ? n0.y_unshifted==n1.y_unshifted : n0.y==n1.y 
