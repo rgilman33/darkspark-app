@@ -45,55 +45,55 @@ export function draw_nn() {
     remove_tensor_square_bc_now_is_actvol(nn)
     function draw_op(op) {
         if (op.collapsed) { // Nodes
-            if (op.mesh == undefined) { // if newly appearing node, create the mesh at the position
-                let sphere
-                if (op.is_activation_volume){
-                    sphere = utils.get_activation_volume(op, op.activation_volume_specs)
-                    op.tensor_node_type="act_vol"
-                    // sphere.position.x -= (op.activation_volume_specs.depth/2)
-                } else {
-                    sphere = get_sphere_group(op)
-                    op.tensor_node_type="standard_node"
-                }
-
-                if (op.originating_position == undefined) { // first init, directly draw at position 
-                    sphere.position.x = op.x
-                    sphere.position.z = op.y
-                    // gently tween in the node as the plane is collapsing
-                    if (op.is_in_process_of_collapsing) {
-                        let sx = sphere.scale.x; let sy = sphere.scale.y; let sz = sphere.scale.z
-                        sphere.scale.x = 0; sphere.scale.y = 0; sphere.scale.z = 0
-
-                        // TODO put this back in now that updated w labels_pool
-
-                        // let orig_label = op.node_label.element.innerText
-                        // op.node_label.element.innerText = "" 
-
-                        all_tweens.push(new TWEEN.Tween(sphere.scale)
-                            .to({x:sx, y:sy, z:sz}, TWEEN_MS) 
-                            .easing(TWEEN_EASE)
-                            .onComplete(() => {
-                                // op.node_label.element.innerText = orig_label
-                            }))
+            if (op.should_draw) { // extraneous nodes get no mesh at all
+                if (op.mesh == undefined) { // if newly appearing node, create the mesh at the position
+                    let sphere
+                    if (op.is_activation_volume){
+                        sphere = utils.get_activation_volume(op, op.activation_volume_specs)
+                        op.tensor_node_type="act_vol"
+                        // sphere.position.x -= (op.activation_volume_specs.depth/2)
+                    } else {
+                        sphere = get_sphere_group(op)
+                        op.tensor_node_type="standard_node"
                     }
-                } else { // from expanding op
-                    sphere.position.x = op.originating_position.x // init at expanding op position, then transition to new position
-                    sphere.position.y = op.originating_position.y
-                    sphere.position.z = op.originating_position.z
 
-                    all_tweens.push(new TWEEN.Tween(sphere.position)
-                        .to({x:op.x, y:0, z:op.y}, TWEEN_MS) 
-                        .easing(TWEEN_EASE))
-                        
+                    if (op.originating_position == undefined) { // first init, directly draw at position 
+                        sphere.position.x = op.x
+                        sphere.position.z = op.y
+                        // gently tween in the node as the plane is collapsing
+                        if (op.is_in_process_of_collapsing) {
+                            let sx = sphere.scale.x; let sy = sphere.scale.y; let sz = sphere.scale.z
+                            sphere.scale.x = 0; sphere.scale.y = 0; sphere.scale.z = 0
+
+                            // TODO put this back in now that updated w labels_pool
+                            // let orig_label = op.node_label.element.innerText
+                            // op.node_label.element.innerText = "" 
+
+                            all_tweens.push(new TWEEN.Tween(sphere.scale)
+                                .to({x:sx, y:sy, z:sz}, TWEEN_MS) 
+                                .easing(TWEEN_EASE)
+                                .onComplete(() => {
+                                    // op.node_label.element.innerText = orig_label
+                                }))
+                        }
+                    } else { // from expanding op
+                        sphere.position.x = op.originating_position.x // init at expanding op position, then transition to new position
+                        sphere.position.y = op.originating_position.y
+                        sphere.position.z = op.originating_position.z
+
+                        all_tweens.push(new TWEEN.Tween(sphere.position)
+                            .to({x:op.x, y:0, z:op.y}, TWEEN_MS) 
+                            .easing(TWEEN_EASE))
+                            
+                    }
+                    scene.add(sphere);
+                    op.mesh = sphere
+                } else { // sphere exists, transition to new position
+                    all_tweens.push(new TWEEN.Tween(op.mesh.position)
+                            .to({x:op.x, y:0, z:op.y}, TWEEN_MS) 
+                            .easing(TWEEN_EASE))
                 }
-                scene.add(sphere);
-                op.mesh = sphere
-            } else { // sphere exists, transition to new position
-                all_tweens.push(new TWEEN.Tween(op.mesh.position)
-                        .to({x:op.x, y:0, z:op.y}, TWEEN_MS) 
-                        .easing(TWEEN_EASE))
             }
-
             op.draw_order_global = draw_order; draw_order += 1
             globals.ops_of_visible_nodes.push(op)
             op.is_currently_visible_node = true
@@ -423,7 +423,8 @@ export function draw_nn() {
                     for (let i = 0; i < oldPts.length; i++) {
                         oldPts[i].set(updatedPoints[i][0], updatedPoints[i][1], updatedPoints[i][2]);
                     }
-                    line_obj.geometry.setFromPoints(oldPts);
+                    // line_obj.geometry.setFromPoints(oldPts);
+                    line_obj.geometry.setPositions(utils.pts_to_positions(oldPts))
                 })
                 .onComplete(() => {
                     scene.remove(line_obj)
@@ -548,7 +549,10 @@ export function draw_nn() {
             if (newPts.length > oldPts.length) { 
                 // Old line was flat and new one is curved. Reinit old line to have more points, then transition those.
                 oldPts = utils.get_curve_pts({x:prev_n0_x, y:0, z:prev_n0_y}, {x:prev_n1_x, y:0, z:prev_n1_y}, CURVE_N_PTS)
-                line_obj.geometry.setFromPoints(oldPts)
+                
+                // line_obj.geometry.setFromPoints(oldPts)
+                line_obj.geometry.setPositions(utils.pts_to_positions(oldPts))
+                
                 n_curves_changed_type += 1
             } else if (newPts.length < oldPts.length) {
                 // New line is flat and prev was curved. Keep the extra pts, transition them to line. Will have extra pts remaining.
@@ -565,7 +569,8 @@ export function draw_nn() {
                     for (let i = 0; i < oldPts.length; i++) {
                         oldPts[i].set(updatedPoints[i][0], updatedPoints[i][1], updatedPoints[i][2]);
                     }
-                    line_obj.geometry.setFromPoints(oldPts);
+                    // line_obj.geometry.setFromPoints(oldPts);
+                    line_obj.geometry.setPositions(utils.pts_to_positions(oldPts))
                 }))
 
                 // doesn't seem to strongly affect perf
@@ -603,7 +608,8 @@ export function draw_nn() {
                     for (let i = 0; i < oldPts.length; i++) {
                         oldPts[i].set(updatedPoints[i][0], updatedPoints[i][1], updatedPoints[i][2]);
                     }
-                    line_obj.geometry.setFromPoints(oldPts);
+                    // line_obj.geometry.setFromPoints(oldPts);
+                    line_obj.geometry.setPositions(utils.pts_to_positions(oldPts))
                 }))
 
             line_obj.frustumCulled = false // needed this to prevent from flickering in and out. TODO fix the underlying issue

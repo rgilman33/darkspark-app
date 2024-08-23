@@ -69,26 +69,6 @@ const square_geometry = new THREE.PlaneGeometry(1, 1);
 const box_geometry = new THREE.BoxGeometry(1, 1, 1);
 box_geometry.translate(-.5, 0, 0) // origin on the right side so box ends where tensor nodes used to be
 
-// console.log("box geometry", box_geometry)
-// // Access the vertices directly
-// const positionAttribute = box_geometry.attributes.position;
-// for (let i = 0; i < positionAttribute.count; i++) {
-//     const vertex = new THREE.Vector3();
-//     vertex.fromBufferAttribute(positionAttribute, i);
-//     console.log(vertex)
-
-//     // If the vertex is part of the top plane (Y = 0.5 for default BoxGeometry)
-//     if (vertex.z == .5) {
-//         vertex.y += .3; // Translate the top plane vertices upward
-//         vertex.x -= .1
-//     }
-
-//     // Write the vertex back to the geometry
-//     positionAttribute.setXYZ(i, vertex.x, vertex.y, vertex.z);
-// }
-
-
-
 
 export const CLICKABLE_LAYER = 1
 export const TWEEN_MS = 600
@@ -123,43 +103,51 @@ export function get_pts_for_flat_line(pt1, pt2) {
     ]
     return pts
 }
-// normal line is constant width in most browsers despite setting thickness
-export function get_line_from_pts(pts, linewidth, color) {
-	const line_geometry = new THREE.BufferGeometry().setFromPoints(pts);
-	const material = new THREE.LineBasicMaterial( { color: color, linewidth:linewidth } );
-	const lineObject = new THREE.Line(line_geometry, material);
-    lineObject.layers.set(MINIMAP_OBJECTS_LAYER)
+// // normal line is constant width in most browsers despite setting thickness
+// export function get_line_from_pts(pts, linewidth, color) {
+// 	const line_geometry = new THREE.BufferGeometry().setFromPoints(pts);
+// 	const material = new THREE.LineBasicMaterial( { color: color, linewidth:linewidth } );
+// 	const lineObject = new THREE.Line(line_geometry, material);
+//     lineObject.layers.set(MINIMAP_OBJECTS_LAYER)
 
-	return lineObject
+// 	return lineObject
+// }
+
+export function pts_to_positions(pts) {
+    // line2 uses flattened array
+    const positions = [];
+    pts.forEach(pt => {
+        positions.push(pt.x, pt.y, pt.z);
+    });
+    return positions
 }
 
-// // Line2 supports line width, which we're finding to be very helpful for understanding
-// export function get_line_from_pts(pts, linewidth, color) {
-//     // Convert the points array into a flat array of coordinates
-//     const positions = [];
-//     pts.forEach(pt => {
-//         positions.push(pt.x, pt.y, pt.z);
-//     });
+// Line2 supports line width, which we're finding to be very helpful for understanding
+export function get_line_from_pts(pts, linewidth, color) {
+    // Convert the points array into a flat array of coordinates
+    let positions = pts_to_positions(pts)
 
-//     // Create the LineGeometry and set the positions
-//     const lineGeometry = new LineGeometry();
-//     lineGeometry.setPositions(positions);
+    // Create the LineGeometry and set the positions
+    const lineGeometry = new LineGeometry();
+    lineGeometry.setPositions(positions);
 
-//     // Create the LineMaterial with specified color and linewidth
-//     const material = new LineMaterial({
-//         color: color,
-//         linewidth: linewidth,  // Line width in world units
-//         dashed: false,         // Optional: set to true if you want a dashed line
-//     });
+    // Create the LineMaterial with specified color and linewidth
+    const material = new LineMaterial({
+        color: color,
+        linewidth: linewidth,  // Line width in world units
+        dashed: false,         // Optional: set to true if you want a dashed line
+    });
 
-//     // Ensure material is updated before rendering
-//     // material.resolution.set(window.innerWidth, window.innerHeight);
+    // Ensure material is updated before rendering
+    // material.resolution.set(window.innerWidth, window.innerHeight);
 
-//     // Create the Line2 object using the geometry and material
-//     const lineObject = new Line2(lineGeometry, material);
+    // Create the Line2 object using the geometry and material
+    const lineObject = new Line2(lineGeometry, material);
 
-//     return lineObject;
-// }
+    lineObject.layers.set(MINIMAP_OBJECTS_LAYER)
+
+    return lineObject;
+}
 
 
 export function get_edge_pts(n0, n1) {
@@ -287,75 +275,6 @@ export function get_group_label(op) {
 	return label
 }
 
-
-export function get_text(op) {
-	const div = document.createElement( 'div' );
-	div.className = 'label';
-    let text = ''
-    let color_lookup = {
-        "unknown": "grey",
-        "features": "green",
-        "spatial":"blue",
-        "batch":"purple"
-    }
-    if (["mod_out", "fn_out"].includes(op.node_type) || op.is_global_input){
-        if ("dim_types" in op) {
-            let span = document.createElement('span');
-            span.innerText = "("
-            div.appendChild(span)
-            op.shape.forEach((s,i) => {
-                let dim_type = op.dim_types[i]
-                let color = color_lookup[dim_type]
-
-                let span = document.createElement('span');
-                span.style.color = color;
-                if (i < (op.shape.length-1)) s += ', '
-                span.innerText = s; 
-                div.appendChild(span);
-            })
-            let end_span = document.createElement('span');
-            end_span.innerText = ")"
-            div.appendChild(end_span)
-        } else {
-            text = op.shape
-            div.innerHTML = text
-        }
-    } else if (["function", "module"].includes(op.node_type)) {
-        text = op.name.slice(0, 10)
-        if ("fn_metadata" in op) {
-            if ("kernel_size" in op.fn_metadata) {
-                let k = op.fn_metadata.kernel_size
-                k = k.includes(",") ? k : "("+k+"x"+k+")"
-                k = k.replace(", ", "x")
-                text += (" "+k)
-            }
-            if ("groups" in op.fn_metadata) {
-                if (parseInt(op.fn_metadata.groups)>1) {
-                    text += ("<br>groups: "+op.fn_metadata.groups)
-                }
-            }
-        }
-        if ("action_along_dim_type" in op) {
-            text += (" ("+op.action_along_dim_type+")")
-        }
-        div.innerHTML = text
-    } 
-
-    div.style.display = 'none' // init to none, will show when close enough
-	div.style.backgroundColor = 'transparent';
-
-	const label = new CSS2DObject( div );
-	label.position.set( 0, 0, 0 );
-	// label.center.set( .5, -.5 ); // centers over node
-    if (op.node_type=="function" || op.node_type=="module") {
-	    label.center.set( .5, 1.1 ); // above node, centered horizontally
-    } else { // tensor node
-	    label.center.set( .5, -.1 ); // below node, centered horizontally
-    }
-
-	return label
-}
-
 let act_vol_base_color = [115, 147, 179].map(d=>d/255) // blue-grey
 const materials = [
     new THREE.MeshBasicMaterial({color: new THREE.Color(...act_vol_base_color.map(d=>d*.2))}), // Front
@@ -367,19 +286,19 @@ const materials = [
 
     new THREE.MeshBasicMaterial({ color: 0x00ffff })  // Cyan
   ];
-  const overflow_materials = [ // quick hack so can see when we have overflow 
-    new THREE.MeshBasicMaterial({color: new THREE.Color('red')}), // Front
-    new THREE.MeshBasicMaterial({ color: 0x00ff00 }), // Green
-    new THREE.MeshBasicMaterial({color: new THREE.Color(...act_vol_base_color.map(d=>d*1.))}), // Top
+const overflow_materials = [ // quick hack so can see when we have overflow 
+new THREE.MeshBasicMaterial({color: new THREE.Color('red')}), // Front
+new THREE.MeshBasicMaterial({ color: 0x00ff00 }), // Green
+new THREE.MeshBasicMaterial({color: new THREE.Color(...act_vol_base_color.map(d=>d*1.))}), // Top
 
-    new THREE.MeshBasicMaterial({ color: 0xffff00 }), // Yellow
-    new THREE.MeshBasicMaterial({color: new THREE.Color(...act_vol_base_color.map(d => d*.5))}), // Facing
+new THREE.MeshBasicMaterial({ color: 0xffff00 }), // Yellow
+new THREE.MeshBasicMaterial({color: new THREE.Color(...act_vol_base_color.map(d => d*.5))}), // Facing
 
-    new THREE.MeshBasicMaterial({ color: 0x00ffff })  // Cyan
-  ];
+new THREE.MeshBasicMaterial({ color: 0x00ffff })  // Cyan
+];
 
+  
 export function get_activation_volume(n, specs){
-    n.should_draw = true
 
     let color = get_node_color(n)
     let act_vol_materials = specs.depth_overflow > 0 ? overflow_materials : materials
@@ -391,8 +310,6 @@ export function get_activation_volume(n, specs){
     // bc orthographic
     sphere.rotation.x += .3
     sphere.rotateOnWorldAxis(new THREE.Vector3(0, 0, 1), 0.3);
-    // sphere.rotateOnWorldAxis(new THREE.Vector3(0, 1, 0), -.05);
-
 
     sphere.scale.y = specs.height
     sphere.scale.z = specs.width
@@ -401,55 +318,32 @@ export function get_activation_volume(n, specs){
     let group = new THREE.Group();
     group.add(sphere)
 
-    if (n.should_draw){
-        // let text = get_text(n)
-        // group.add(text)
-        // n.node_label = text
+    // Create a larger sphere for click events
+    let largerSphere = new THREE.Mesh(sphere_geometry,
+            new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0 })); // color doesn't matter
+    largerSphere.rotation.x = -Math.PI / 2; // Rotate 90 degrees to make it face upward
+    largerSphere.position.y += 0
+    
+    let s = 3
+    let larger_sphere_scale = Math.min(sphere.scale.x*s, MAX_SPHERE_SIZE) // don't need our large spheres to have any extra for clicking
+    largerSphere.scale.x = larger_sphere_scale
+    largerSphere.scale.y = larger_sphere_scale
+    largerSphere.scale.z = larger_sphere_scale
+    largerSphere.layers.set(CLICKABLE_LAYER);
+    largerSphere.smaller_sphere = sphere
+    group.add(largerSphere);
 
-        // Create a larger sphere for click events
-        let largerSphere = new THREE.Mesh(sphere_geometry,
-                new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0 })); // color doesn't matter
-        largerSphere.rotation.x = -Math.PI / 2; // Rotate 90 degrees to make it face upward
-        largerSphere.position.y += 0
-        
-        let s = 3
-        let larger_sphere_scale = Math.min(sphere.scale.x*s, MAX_SPHERE_SIZE) // don't need our large spheres to have any extra for clicking
-        largerSphere.scale.x = larger_sphere_scale
-        largerSphere.scale.y = larger_sphere_scale
-        largerSphere.scale.z = larger_sphere_scale
-        largerSphere.layers.set(CLICKABLE_LAYER);
-        largerSphere.smaller_sphere = sphere
-        group.add(largerSphere);
+    group.children.forEach(c => c.actual_node = n) // required for onHover, click events
 
-        group.children.forEach(c => c.actual_node = n) // required for onHover, click events
-
-        group.children.forEach(o => {
-            o.visible = true
-        })
-    } else {
-        group.children.forEach(o => {
-            o.visible = false
-        })
-    }
-
+    group.children.forEach(o => {
+        o.visible = true
+    })
     return group
 }
 
 
 export function get_sphere_group(n){
     
-    if (((n.node_type=="function" || 
-        n.node_type=="module" || 
-        n.is_global_input || 
-        n.node_type=="fn_out" || 
-        n.node_type=="mod_out") &&
-        !n.node_is_extraneous_io) || DEBUG 
-        ) {
-        n.should_draw = true
-    } else {
-        n.should_draw = false
-    }
-
     let sphere
     let color = get_node_color(n)
     if (n.node_type=="function" || n.node_type=="module") {
@@ -462,43 +356,30 @@ export function get_sphere_group(n){
     sphere.position.y += .1 // shift towards camera so doesn't overlap w edges
 
     scale_sphere(sphere, n.n_ops)
-    // sphere.layers.set(CLICKABLE_LAYER)
 
     let group = new THREE.Group();
     group.add(sphere)
 
-    if (n.should_draw){
+    // Create a larger sphere for click events
+    let largerSphere = new THREE.Mesh(sphere_geometry,
+            new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0 })); // color doesn't matter
+    largerSphere.rotation.x = -Math.PI / 2; // Rotate 90 degrees to make it face upward
+    largerSphere.position.y += 0
+    
+    let s = 3
+    let larger_sphere_scale = Math.min(sphere.scale.x*s, MAX_SPHERE_SIZE) // don't need our large spheres to have any extra for clicking
+    largerSphere.scale.x = larger_sphere_scale
+    largerSphere.scale.y = larger_sphere_scale
+    largerSphere.scale.z = larger_sphere_scale
+    largerSphere.layers.set(CLICKABLE_LAYER);
+    largerSphere.smaller_sphere = sphere
+    group.add(largerSphere);
 
-        // let text = get_text(n)
-        // group.add(text)
-        // n.node_label = text
+    group.children.forEach(c => c.actual_node = n) // required for onHover, click events
 
-        // Create a larger sphere for click events
-        let largerSphere = new THREE.Mesh(sphere_geometry,
-                new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0 })); // color doesn't matter
-        largerSphere.rotation.x = -Math.PI / 2; // Rotate 90 degrees to make it face upward
-        largerSphere.position.y += 0
-        
-        let s = 3
-        let larger_sphere_scale = Math.min(sphere.scale.x*s, MAX_SPHERE_SIZE) // don't need our large spheres to have any extra for clicking
-        largerSphere.scale.x = larger_sphere_scale
-        largerSphere.scale.y = larger_sphere_scale
-        largerSphere.scale.z = larger_sphere_scale
-        largerSphere.layers.set(CLICKABLE_LAYER);
-        largerSphere.smaller_sphere = sphere
-        group.add(largerSphere);
-
-        group.children.forEach(c => c.actual_node = n) // required for onHover, click events
-
-        group.children.forEach(o => {
-            o.visible = true
-        })
-    } else {
-        group.children.forEach(o => {
-            o.visible = false
-        })
-    }
-
+    group.children.forEach(o => {
+        o.visible = true
+    })
     return group
 }
 
@@ -564,24 +445,10 @@ export function get_plane_specs(op){
 
 export function remove_sphere(op) {
     if (op.mesh != undefined) {
-        if ("node_label" in op) {
-            let label = op.node_label
-            remove_css2d_object(label)
-        }
+        remove_label_from_op_and_return_to_pool(op)
     }
-    op.node_label = undefined
     scene.remove(op.mesh)
     op.mesh = undefined
-}
-export function remove_css2d_object(label) {
-    if (label){
-        if ("parentNode" in label.element) {
-            if (label.element.parentNode != null) {
-                label.element.parentNode.removeChild(label.element);
-            }
-        }
-    }
-    scene.remove(label)
 }
 
 export function remove_plane(op) {
@@ -596,13 +463,13 @@ export function remove_plane(op) {
 
 export function remove_all_meshes(op, target_position) {
     if (op.mesh != undefined) { // has node
-        // dumb manual hack. Otherwise these are all showing, regardless of distance. 
-        // I think tween messes w distance calc for camera, similar to frustum culling being messed up when transition edges
-        if (op.node_label != undefined) {
-            if (op.node_label.element != undefined) {
-                op.node_label.element.innerText = "" 
-            }
-        }
+        // // dumb manual hack. Otherwise these are all showing, regardless of distance. 
+        // // I think tween messes w distance calc for camera, similar to frustum culling being messed up when transition edges
+        // if (op.active_node_label != undefined) {
+        //     if (op.node_label.element != undefined) {
+        //         op.node_label.element.innerText = "" 
+        //     }
+        // }
         new TWEEN.Tween(op.mesh.position)
                 .to(target_position, TWEEN_MS) 
                 .easing(TWEEN_EASE)
@@ -646,16 +513,16 @@ export function populate_labels_pool() {
     for (let i=0; i<N_LABELS_IN_POOL; i++) {
     
         const div = document.createElement( 'div' );
-        div.className = 'label';
-        let text = 'placeholder'
-    
-        div.innerHTML = text
-    
+        div.className = 'label';    
         div.style.backgroundColor = 'transparent';
+
+        for (let i=0; i<8; i++) {
+            let span = document.createElement('span')
+            div.appendChild(span)
+        }
     
         const label = new CSS2DObject( div );
 
-        label.element.innerHTML = "ppp"
         // label.element.style.display = "none" // this wasn't doing it, have to set label.visible
         label.visible = false
     
@@ -672,15 +539,111 @@ export function populate_labels_pool() {
     }
 }
 
+let color_lookup = {
+    "unknown": "grey",
+    "features": "green",
+    "spatial":"blue",
+    "batch":"purple"
+}
+// grab label from pool, fill it out w op's info and position it at op's location
+function assign_label_to_op(op) {
+    let label = globals.labels_pool.pop()
+    if (label) {
+        // label.position.set(op.x, 0, op.y)
+        label.position.set(0, 0, 0)
+        op.mesh.add(label)
+
+        ////
+        if (["mod_out", "fn_out"].includes(op.node_type) || op.is_global_input){
+            label.center.set( .5, -.1 ); // below node, centered horizontally
+            if ("dim_types" in op) {
+                let spans = label.element.children
+
+                let spans_ix = 0
+                spans[0].innerText = "("; spans_ix += 1
+                spans[0].style.display = 'inline'
+                op.shape.forEach((s,i) => {
+                    let dim_type = op.dim_types[i]
+                    let color = color_lookup[dim_type]
+    
+                    let span = spans[spans_ix]; spans_ix+= 1
+                    span.style.display = 'inline'
+                    span.style.color = color;
+                    if (i < (op.shape.length-1)) s += ', '
+                    span.innerText = s; 
+                })
+                let last_span = spans[spans_ix]
+                last_span.innerText = ")"
+                last_span.style.display = "inline"
+
+            } else {
+                let spans = label.element.children
+                spans[0].innerText = op.shape
+                spans[0].style.display = 'inline'
+            }
+        } else if (["function", "module"].includes(op.node_type)) {
+            label.center.set( .5, 1.1 ); // above node, centered horizontally
+            let spans = label.element.children
+            let first_span = spans[0]
+            first_span.style.display = 'inline'
+            first_span.innerText = op.name.slice(0, 10)
+            if ("fn_metadata" in op) {
+                if ("kernel_size" in op.fn_metadata) {
+                    let k = op.fn_metadata.kernel_size
+                    k = k.includes(",") ? k : "("+k+"x"+k+")"
+                    k = k.replace(", ", "x")
+                    spans[1].innerText = " "+k
+                    spans[1].style.color = 'grey'
+                    spans[1].style.display = 'inline'
+                }
+                if ("groups" in op.fn_metadata) {
+                    if (parseInt(op.fn_metadata.groups)>1) {
+                        spans[2].innerText = " groups: "+op.fn_metadata.groups
+                        spans[2].style.color = 'grey'
+                        spans[2].style.display = 'inline'
+                    }
+                }
+            }
+            
+            if ("action_along_dim_type" in op) {
+                spans[3].innerText = (" ("+op.action_along_dim_type+")")
+                spans[3].style.display = 'inline'
+                spans[3].style.color = 'grey'
+            }
+        } 
+        ///////
+        
+        label.visible = true
+        op.active_node_label = label
+        label.current_op = op
+    } else {
+      console.log("label pool empty")
+    }
+}
 
 function remove_label_from_op_and_return_to_pool(op) {
-    let label = op.active_node_label
-    // label.element.style.display = 'none' doesn't work, that wasted an hour
-    label.visible = false // i think this overrides manually setting it. Have to do it this way. 
-    globals.labels_pool.push(label)
-    op.active_node_label = undefined
-    label.current_op = undefined
+    if (op.active_node_label != undefined) {
+        let label = op.active_node_label
+        op.mesh.remove(label) // remove from three.js Group
+    
+        // label.element.style.display = 'none' doesn't work, that wasted an hour
+        label.visible = false // i think this overrides manually setting it. Have to do it this way. 
+    
+        // set all spans as display none. Can use the display==none technique here, though not on the style of the base div element (that is overridden by label.visible)
+        let spans = label.element.children
+        for (let i=0; i<spans.length; i++) {
+            let span = spans[i]
+            span.style.display = 'none'
+            span.style.color = 'black'
+            span.innerText = ""
+        }
+    
+        globals.labels_pool.push(label)
+        op.active_node_label = undefined
+        label.current_op = undefined
+    }
 }
+
 function update_nodes_labels() {
     let [h_width, h_height, cx, cz] = get_main_window_position()
     let bh = 3; let bv = 1.5 // scaling to give buffer to count as 'on screen' to put labels in place before they scroll into view.
@@ -690,22 +653,10 @@ function update_nodes_labels() {
       let zoomed_enough = (globals.camera.zoom > 30 || (globals.camera.zoom > 20 && (op.node_type=="function" || op.node_type=="module")))
       if (is_onscreen && zoomed_enough && op.should_draw) {
         if (!op.active_node_label) {
-          let label = globals.labels_pool.pop()
-          if (label) {
-            label.position.set(op.x, 0, op.y)
-            label.element.innerHTML = op.name
-            // label.element.style.display = 'block'
-            label.visible = true
-            op.active_node_label = label
-            label.current_op = op
-          } else {
-            console.log("label pool empty")
-          }
+            assign_label_to_op(op)
         }
       } else {
-        if (op.active_node_label) {
-            remove_label_from_op_and_return_to_pool(op)
-        }
+        remove_label_from_op_and_return_to_pool(op)
       }
     })
 
@@ -717,11 +668,10 @@ function update_nodes_labels() {
     })
   }
 
-function update_planes_labels() { // only planes now
+function update_planes_labels() { 
 
-    //////////////
-    // planes
     // Only consider if within distance
+    // TODO only do if on screen
     let consider_drawing = []
     globals.ops_of_visible_planes.forEach(op => {
         if (globals.camera.zoom > 60 || 
@@ -736,6 +686,7 @@ function update_planes_labels() { // only planes now
     })
 
     // Of those within distance, remove if overlap
+
     // from chatgpt
     const getScreenCoordinates = (object, cam) => {
         const vector = new THREE.Vector3();

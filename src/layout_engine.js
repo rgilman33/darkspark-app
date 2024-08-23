@@ -585,6 +585,25 @@ export default function recompute_layout() {
 
     }
     mark_plane_specs(nn)
-    console.log(nn)
+
+    //////////////////////////////////
+    // set should_draw. Used to hide nodes used for structural layout, eg elbows, inputs, etc, but to show them 
+    // when eg debug
+    for (let op_id in globals.nodes_lookup) {
+        let op = globals.nodes_lookup[op_id]
+        if (((op.node_type=="function" || 
+            op.node_type=="module" || 
+            op.is_global_input || 
+            op.node_type=="fn_out" || 
+            op.node_type=="mod_out") &&
+            !op.node_is_extraneous_io) || DEBUG || op.is_activation_volume
+            ) {
+                op.should_draw = true
+        } else {
+            op.should_draw = false
+        }
+    }
+
+
     console.timeEnd("compute layout")
 }
