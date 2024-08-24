@@ -33,10 +33,56 @@ export function draw_nn() {
         if (op.collapsed) {
             if (op.is_activation_volume && op.tensor_node_type=="standard_node" && op.mesh != undefined) {
                 // wasn't an actvol before but is now
+                // note we're grabbing position from mesh object itself, which we don't normally do
+                let prev_pos = {x: op.mesh.position.x, y:op.mesh.position.y, z:op.mesh.position.z}
                 utils.remove_sphere(op)
+
+                // init actvol at location of prev square, tween to full scale
+                let node_mesh = utils.get_activation_volume(op, op.activation_volume_specs)
+                op.tensor_node_type="act_vol"
+
+                node_mesh.position.x = prev_pos.x
+                node_mesh.position.y = prev_pos.y
+                node_mesh.position.z = prev_pos.z
+
+                let target_scale = {x:node_mesh.scale.x, y:node_mesh.scale.y, z:node_mesh.scale.z}
+                node_mesh.scale.x = 0
+                node_mesh.scale.y = 0
+                node_mesh.scale.z = 0
+
+                scene.add(node_mesh)
+                op.mesh = node_mesh
+
+                all_tweens.push(new TWEEN.Tween(node_mesh.scale)
+                    .to(target_scale, TWEEN_MS) 
+                    .easing(TWEEN_EASE)
+                    .onComplete(() => {
+                        // op.node_label.element.innerText = orig_label
+                    }))
+
             } else if (!op.is_activation_volume && op.tensor_node_type=="act_vol" && op.mesh != undefined) {
                 // was prev an actvol but now should be simple square
-                utils.remove_sphere(op)
+
+                // Keeping the mesh means it will be tweened into new position in below functionality.
+                // we're doing a scale to zero transition here for visual effect, then swapping for tensor square once actvol is gone.
+                // the actvol will be the mesh that rides the position transition to new location (set below), while also shrinking (set here)
+                all_tweens.push(new TWEEN.Tween(op.mesh.scale)
+                    .to({x:0, y:0, z:0}, TWEEN_MS) 
+                    .easing(TWEEN_EASE)
+                    .onComplete(() => {
+                        
+                        utils.remove_sphere(op)
+
+                        let node_mesh = get_sphere_group(op)
+                        op.tensor_node_type="standard_node"
+        
+                        node_mesh.position.x = op.x
+                        node_mesh.position.z = op.y
+
+                        scene.add(node_mesh)
+                        op.mesh = node_mesh
+                    }))
+
             }
         } else {
             op.children.forEach(c=>remove_tensor_square_bc_now_is_actvol(c))
@@ -80,6 +126,17 @@ export function draw_nn() {
                         sphere.position.x = op.originating_position.x // init at expanding op position, then transition to new position
                         sphere.position.y = op.originating_position.y
                         sphere.position.z = op.originating_position.z
+
+                        if (op.is_activation_volume){
+                            let target_scale = {x:sphere.scale.x, y:sphere.scale.y, z:sphere.scale.z}
+                            sphere.scale.x = 0
+                            sphere.scale.y = 0
+                            sphere.scale.z = 0
+                            all_tweens.push(new TWEEN.Tween(sphere.scale)
+                                .to(target_scale, TWEEN_MS) 
+                                .easing(TWEEN_EASE))
+                        }
+                        
 
                         all_tweens.push(new TWEEN.Tween(sphere.position)
                             .to({x:op.x, y:0, z:op.y}, TWEEN_MS) 
@@ -432,7 +489,9 @@ export function draw_nn() {
                 }))
 
         } else if ((n0.terminating_position == undefined) && (n1.terminating_position != undefined)) {
-            // edges going into collapsing op. Recycle by transfering line obj and creating new entry in curves_lookup. Deleting old entry but keeping curve obj
+            // edges going into collapsing op
+            // Recycle by transfering line obj and creating new entry in curves_lookup. 
+            // Deleting old entry but keeping curve obj
             let collapsed_op = n1.parent_op
 
             let new_edge_id = n0.node_id+collapsed_op.node_id
@@ -446,7 +505,25 @@ export function draw_nn() {
 
             delete curves_lookup[edge_id]
 
-        } else { // just remove the edge directly. When will this even happen?
+        } else if ((n0.terminating_position != undefined) && (n1.terminating_position == undefined)) {
+            // edges leaving a collapsing op
+            // Recycle by transfering line obj and creating new entry in curves_lookup. 
+            // Deleting old entry but keeping curve obj
+            let collapsed_op = n0.parent_op
+
+            let new_edge_id = collapsed_op.node_id+n1.node_id
+            curves_lookup[new_edge_id] = {}
+            curves_lookup[new_edge_id].edge_package = [line_obj, prev_n0_x, prev_n0_y, prev_n1_x, prev_n1_y] // same package as prev, just reassembling
+            curves_lookup[new_edge_id].still_exists = true
+            curves_lookup[new_edge_id].nodes = [collapsed_op, n1]
+            // should get picked up below
+
+            n_recycled_edges += 1
+
+            delete curves_lookup[edge_id]
+
+        } 
+        else { // just remove the edge directly. When will this even happen?
             n_just_removed_edges += 1
             scene.remove(line_obj)
             delete curves_lookup[edge_id]
@@ -462,7 +539,7 @@ export function draw_nn() {
         } else if ("sparkflow" in n1) {
             sparkflow = n1["sparkflow"]
         }
-        let zoom_max_linewidth = utils.interp(camera.zoom, [10,50], [2.8, 10]) // max was at five
+        let zoom_max_linewidth = utils.interp(camera.zoom, [10,50], [2.8, 8]) // max was at five
         // TODO this won't update on zoom scroll, only when open or close.
         // if like this then attach listener to zoom event
 
@@ -470,8 +547,8 @@ export function draw_nn() {
         if (sparkflow) {
             let normalized_sparkflow = normalize_sparkflow(sparkflow) // zero to one relative to all edges currently drawn
             let linewidth = utils.interp(normalized_sparkflow, [0,1], [1,zoom_max_linewidth]) // when zoomed out, don't really want more than 3, when zoomed in up to five or so is helpful
-            let brightness_factor = utils.interp(normalized_sparkflow, [0, 1], [4,.2]) // darker for more weight
-            // let brightness_factor = utils.interp(normalized_sparkflow, [0, 1], [3,.8]) // lighter for when paired w linewidth
+            // let brightness_factor = utils.interp(normalized_sparkflow, [0, 1], [4,.2]) // darker for more weight
+            let brightness_factor = utils.interp(normalized_sparkflow, [0, 1], [4,.8]) // lighter for when paired w linewidth
             let color = utils.get_edge_color(brightness_factor)
             return [linewidth, color]
             // return [2, color] 
@@ -498,7 +575,8 @@ export function draw_nn() {
         } else { 
             // new edges
             if ((n0.originating_position == undefined) && (n1.originating_position != undefined)) {
-                // edges going into expanding ops. init at prev location so can tween below via existing_curves pathway
+                // edges going into expanding ops. 
+                // init at prev location so can tween below via existing_curves pathway
                 // there will already be a curve at this exact location (going into module) so it won't look abrubt
                 let p = n1.originating_position
                 let prev_n1 = {x:p.x, y:p.z, y_unshifted:p.z} // confusing attrs. mimicing a node bc that's what fn get_edge_pts expects
@@ -518,7 +596,30 @@ export function draw_nn() {
 
                 existing_edges.push(e)
 
-            } else {
+            } else if ((n0.originating_position != undefined) && (n1.originating_position == undefined)) {
+                // edges exiting expanding ops. 
+                // init at prev location so can tween below via existing_curves pathway
+                // there will already be a curve at this exact location (leaving module) so it won't look abrubt
+                let p = n0.originating_position
+                let prev_n0 = {x:p.x, y:p.z, y_unshifted:p.z} // confusing attrs. mimicing a node bc that's what fn get_edge_pts expects
+                let pts = utils.get_edge_pts(prev_n0, n1) 
+                let [linewidth, color] = get_linewidth_and_color(n0,n1) 
+                let line_obj = utils.get_line_from_pts(pts, linewidth, color)
+    
+                line_obj.userData.pts = pts
+    
+                curves_lookup[edge_id] = {}
+                curves_lookup[edge_id].edge_package = [line_obj, prev_n0.x, prev_n0.y, n1.x, n1.y]
+                curves_lookup[edge_id].still_exists = true
+                curves_lookup[edge_id].nodes = [n0, n1]
+    
+                scene.add(line_obj)
+                n_recycled_edges += 1
+
+                existing_edges.push(e)
+
+            }
+             else {
                 new_edges.push(e)
             }
         }
@@ -574,7 +675,7 @@ export function draw_nn() {
                 }))
 
                 // doesn't seem to strongly affect perf
-                line_obj.frustumCulled = false // needed this to prevent from flickering in and out. TODO fix the underlying issue
+                //line_obj.frustumCulled = false // needed this to prevent from flickering in and out. TODO fix the underlying issue
             
             curves_lookup[edge_id].edge_package = [line_obj, n0.x, n0.y, n1.x, n1.y] // keep position up to date. don't actually need to refresh curve
         }
@@ -612,7 +713,9 @@ export function draw_nn() {
                     line_obj.geometry.setPositions(utils.pts_to_positions(oldPts))
                 }))
 
-            line_obj.frustumCulled = false // needed this to prevent from flickering in and out. TODO fix the underlying issue
+            //line_obj.frustumCulled = false // needed this to prevent from flickering in and out. TODO fix the underlying issue
+            // Line2 doesn't have this issue, normal Line does
+            // was slowing things down substantially after any shifting. Not needed anymore anyways? commenting out seems fine...
             
         } else { 
             // first make, no tween. Just init at final position

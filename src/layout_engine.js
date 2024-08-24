@@ -108,6 +108,42 @@ export default function recompute_layout() {
         }
     }
     add_activation_volume(nn)
+
+    function prune_children_activation_volumes(op) {
+        if (!op.collapsed) {
+            // compile rows lookup
+            let rows = {}
+            op.children.forEach(c => {
+                if (!(c.draw_order_row in rows)) {
+                    rows[c.draw_order_row] = {
+                        "nodes":[],
+                        "draw_order_row":c.draw_order_row,
+                    }
+                };
+                rows[c.draw_order_row].nodes.push(c)
+            })
+            // Prune actvols
+            for (let rid in rows) {
+                let row = rows[rid]
+                let row_actvols = row.nodes.filter(n => n.is_activation_volume)
+                row_actvols.sort((a,b) => a.x_relative - b.x_relative)
+                for (let i = 1; i<row_actvols.length; i++) {
+                    let prev_actvol = row_actvols[i-1]
+                    let this_actvol = row_actvols[i]
+                    let s0 = prev_actvol.activation_volume_specs
+                    let s1 = this_actvol.activation_volume_specs
+                    let no_dims_change = (s0.width==s1.width) && (s0.height==s1.height) && (s0.depth==s1.depth)
+                    if (no_dims_change) {
+                        prev_actvol.is_activation_volume = false
+                    }
+                }
+            }
+            // 
+            op.children.forEach(c => prune_children_activation_volumes(c))
+        }
+
+    }
+    prune_children_activation_volumes(nn)
     ///////////////////////////////////////////////////
 
     
@@ -185,6 +221,7 @@ export default function recompute_layout() {
         ///////////////////
         // new version
         // marking forward then when hitting already marked, shifts entire branch up to meet it, clumps to the right
+        // see backend for full comments, as this is same as there
         function mark_next_x_pos(op_whose_dns_to_nudge) {
             let dns = utils.get_downstream_peer_nodes(op_whose_dns_to_nudge, op.children)
             dns.forEach(dn => {

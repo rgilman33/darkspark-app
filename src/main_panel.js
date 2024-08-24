@@ -57,6 +57,7 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
   const statsRef = useRef(null);
   const minimapMountRef = useRef(null);
   const [hoveredObject, setHoveredObject] = useState(null);
+  const [tooltipObject, setTooltipObject] = useState(null);
   const [tooltipPosition, setTooltipPosition] = useState({ left: 0, top: 0 });
   const [contextMenu, setContextMenu] = useState(null);
 
@@ -96,6 +97,7 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
     // Enable both default layer and clickable layer on the camera
     // minimap_camera.layers.enable(0); // Default layer
     minimap_camera.layers.enable(utils.MINIMAP_OBJECTS_LAYER);
+    minimap_camera.layers.enable(utils.ACTVOL_OBJECTS_LAYER);
     minimap_camera.layers.disable(0);
     minimap_camera.layers.disable(CLICKABLE_LAYER);
 
@@ -108,12 +110,13 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
     camera.layers.enable(0); // Default layer
     camera.layers.enable(CLICKABLE_LAYER);
     camera.layers.enable(utils.MINIMAP_OBJECTS_LAYER);
+    camera.layers.enable(utils.ACTVOL_OBJECTS_LAYER);
     camera.position.set(0, MAIN_CAMERA_HEIGHT, 0 );
     camera.zoom = 28 // for 2d
 
     // window.addEventListener( 'resize', onWindowResize );
     window.addEventListener( 'dblclick', onPointerDown );
-    window.addEventListener( 'click', singleClick );
+    // window.addEventListener( 'click', singleClick );
     window.addEventListener('mousemove', onMouseMove, false);
 
     // Label renderer
@@ -362,12 +365,14 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
 
                 let screen_coords = getScreenCoordinates(INTERSECTED)
 
-                setHoveredObject(INTERSECTED.actual_node);
+                setTooltipObject(INTERSECTED.actual_node);
                 setTooltipPosition({ left: screen_coords.clientX, top: screen_coords.clientY });
+                setHoveredObject(INTERSECTED.actual_node);
+
 
             }
         } else if ("expanded_op" in intersects[ 0 ].object) {
-            setHoveredObject(null);
+            setTooltipObject(null);
 
             if ( INTERSECTED != intersects[ 0 ].object ) {
 
@@ -381,6 +386,8 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
                 INTERSECTED.material.color = utils.plane_highlight_color
 
                 currently_hovering = intersects[ 0 ].object.expanded_op
+                setHoveredObject(intersects[ 0 ].object.expanded_op);
+
                 if (is_shift) console.log("mouseover plane", intersects[ 0 ].object.expanded_op)
 
             }
@@ -390,8 +397,9 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
     } else { // no selected at all
         if ( INTERSECTED ) INTERSECTED.material.color = INTERSECTED.prev_color;
         INTERSECTED = null;
-        setHoveredObject(null);
+        setTooltipObject(null);
         currently_hovering = null
+        setHoveredObject(null)
     }
   }
 
@@ -429,36 +437,54 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
         } else if ("expanded_op" in intersects[0].object) { // collapsing an op
             let intersect = intersects[0].object
             console.log("attempting to collapse plane for ", intersect.expanded_op.name, intersect.expanded_op)
-
-            let op = intersect.expanded_op
-            let to_remove_container = []
             if (is_shift) {
-              utils.mark_all_mods_of_family_as_collapsed(globals.nn, op.name, true, to_remove_container)
+              collapse_all_of_mod_class(intersect.expanded_op.name)
             } else {
-              utils.mark_as_collapsed(op, true, false) // mark the datastructure
-              utils.mark_attr(op, "terminating_position", {x:op.x, y:0, z:op.y})
+              collapse_op(intersect.expanded_op)
             }
 
-            op.is_in_process_of_collapsing = true // use to tween in the new node
-
-            recompute_layout() // recompute datastructure
-
-            if (is_shift) {
-                to_remove_container.forEach(o => {
-                  utils.remove_all_meshes(o, {x:o.x, y:0, z:o.y}) // remove the physical meshes
-                })
-            } else {
-              utils.remove_all_meshes(op, {x:op.x, y:0, z:op.y}) // remove the physical meshes
-            }
-            draw_nn()
-            utils.update_labels()
-            utils.mark_attr(op, "terminating_position", undefined)
-            delete op.is_in_process_of_collapsing
         }
     } else { // background, other
     }
 
     renderer.render(scene, camera); // necessary?
+  }
+
+  // collapse single expanded plane into node
+  function collapse_op(op) {
+      utils.mark_as_collapsed(op, true, false) // mark the datastructure
+      recompute_layout() // recompute datastructure
+
+      // 'terminating_position' is the location of the plane after it has collapsed
+      // for a single plane, this won't change before or after compute_layout
+      utils.mark_attr(op, "terminating_position", {x:op.x, y:0, z:op.y}) // they will collapse to the top left corner, which is the expanded plane coords
+
+      op.is_in_process_of_collapsing = true // use to tween in the new node
+
+      utils.remove_all_meshes(op, {x:op.x, y:0, z:op.y}) // remove the physical meshes
+      draw_nn()
+      utils.update_labels()
+      utils.mark_attr(op, "terminating_position", undefined)
+      delete op.is_in_process_of_collapsing
+  }
+
+  // collapse all planes of class into nodes
+  function collapse_all_of_mod_class(mod_class) {
+      let to_remove_container = [] // will be populated w ops to collapse
+      utils.mark_all_mods_of_family_as_collapsed(globals.nn, mod_class, true, to_remove_container)
+      recompute_layout() // recompute datastructure
+
+      to_remove_container.forEach(o => {
+        utils.mark_attr(o, "terminating_position", {x:o.x, y:0, z:o.y}) // for multiple planes simultaneously, has to be done after recompute_layout
+        o.is_in_process_of_collapsing = true
+        utils.remove_all_meshes(o, {x:o.x, y:0, z:o.y}) // remove the physical meshes
+      })
+      draw_nn()
+      utils.update_labels()
+      to_remove_container.forEach(o => {
+        utils.mark_attr(o, "terminating_position", undefined)
+        delete o.is_in_process_of_collapsing
+      })
   }
  
 
@@ -637,19 +663,31 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
     setContextMenu(null);
   };
   const handleRightClick = (event) => {
-    event.preventDefault();
-    setContextMenu(
-      contextMenu === null ? { mouseX: event.clientX - 2, mouseY: event.clientY - 4 } : null
-    )
+    let is_shift = event.shiftKey
+    if (is_shift) {
+      event.preventDefault();
+      setContextMenu(
+        contextMenu === null ? { mouseX: event.clientX - 2, mouseY: event.clientY - 4, "current_op":hoveredObject } : null
+      )
+    }
   };
-
-  function singleClick(event) {
-    console.log(currently_hovering)
-    // if (currently_hovering != null) {
-    //   handleRightClick(event)
-    //   console.log("single click")
-    // }
+  const contextMenuCollapseAllOfClass = () => {
+    let op = contextMenu.current_op
+    collapse_all_of_mod_class(op.name)
+    handleClose()
   }
+  const contextMenuCollapseModule = () => {
+    let op = contextMenu.current_op
+    collapse_op(op)
+    handleClose()
+  }
+  // function singleClick(event) {
+  //   console.log(currently_hovering)
+  //   // if (currently_hovering != null) {
+  //   //   handleRightClick(event)
+  //   //   console.log("single click")
+  //   // }
+  // }
 
   let tooltip_attrs_list = ['node_id', "dist_from_end_originator_count", "dist_from_end_global", "respath_dist", 
         "dist_from_start_originator_count", "dist_from_start_global",
@@ -658,8 +696,36 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
         'n_ops', 'depth', 'input_shapes', 'output_shapes', 'is_output_global', 
         "sparkflow", "params", "incremental_memory_usage", "max_memory_allocated", "latency", "n_params", "mod_inputs"]
 
+  const render_menu_items = () => {
+    if (contextMenu === null) return [<MenuItem></MenuItem>]
+    if (contextMenu.current_op) {
+        let op = contextMenu.current_op
+        if (op.collapsed) { // collapsed node
+            return [
+              <MenuItem onClick={handleClose}>Option 2</MenuItem>,
+          ]
+        } else { // expanded plane
+            return [
+              <MenuItem onClick={contextMenuCollapseModule}>Collapse this module {op.name}</MenuItem>,
+              <MenuItem onClick={contextMenuCollapseAllOfClass}>
+                Collapse all modules of class {op.name}
+              </MenuItem>,
+          ]
+        }
 
-  return <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
+    } else { // no current op hovered over, root menu
+      return [
+        <MenuItem onClick={handleClose}>Option 2</MenuItem>,
+        <MenuItem onClick={handleClose}>Option 3</MenuItem>,
+    ]
+    }
+
+  }
+
+
+        
+
+  return <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }} onContextMenu={handleRightClick}>
 
             <div style={{ zIndex: 2, width: '100%', height: `${minimap_total_height}px`, backgroundColor:'grey', 
                     position: 'absolute', top:'0px', left:'0px'
@@ -682,15 +748,15 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
             <div ref={statsRef} style={{ zIndex: 2}} />
 
 
-            {hoveredObject && (
+            {tooltipObject && (
               <Tooltip
-                open={Boolean(hoveredObject)}
+                open={Boolean(tooltipObject)}
                 title={
                   <div style={{ lineHeight: '1.5', userSelect: 'none' }}>
-                    <div style={{ fontSize: '16px', fontWeight: 'bold' }}>{hoveredObject.name }</div>
+                    <div style={{ fontSize: '16px', fontWeight: 'bold' }}>{tooltipObject.name }</div>
                     {
                       tooltip_attrs_list.map((p,i) => {
-                        return <div key={i}>{p}: {String(hoveredObject[p])}</div>
+                        return <div key={i}>{p}: {String(tooltipObject[p])}</div>
                     })
                     }
                   </div>
@@ -707,24 +773,25 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
                 <div />
               </Tooltip>
             )}
-            <Menu
-              keepMounted
-              open={contextMenu !== null}
-              onClose={handleClose}
-              anchorReference="anchorPosition"
-              anchorPosition={
-                contextMenu !== null
-                  ? { top: contextMenu.mouseY, left: contextMenu.mouseX }
-                  : undefined
-              }
-            >
-              <MenuItem onClick={handleClose}>Option 1</MenuItem>
-              <MenuItem onClick={handleClose}>Option 2</MenuItem>
-              <MenuItem onClick={handleClose}>Option 3</MenuItem>
-            </Menu>
+              <Menu
+                keepMounted
+                open={contextMenu !== null}
+                onClose={handleClose}
+                anchorReference="anchorPosition"
+                anchorPosition={
+                  contextMenu !== null
+                    ? { top: contextMenu.mouseY, left: contextMenu.mouseX }
+                    : undefined
+                }
+              >
+                {render_menu_items()}
+              </Menu>
+
 
 
           </div>;
 };
+
+
 
 export default MainPanel;

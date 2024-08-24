@@ -24,6 +24,7 @@ export let globals = {
     mount: undefined,
 }
 export const MINIMAP_OBJECTS_LAYER = 3
+export const ACTVOL_OBJECTS_LAYER = 4
 
 export let scene = new THREE.Scene();
 scene.background = new THREE.Color(...[248, 249, 250].map(d => d/255));
@@ -71,7 +72,7 @@ box_geometry.translate(-.5, 0, 0) // origin on the right side so box ends where 
 
 
 export const CLICKABLE_LAYER = 1
-export const TWEEN_MS = 600
+export const TWEEN_MS = 2000 //600
 export const TWEEN_EASE = TWEEN.Easing.Linear.None
 
 export const plane_highlight_color = new THREE.Color(...[228, 229, 230].map(d => d/255));;
@@ -148,6 +149,8 @@ export function get_line_from_pts(pts, linewidth, color) {
 
     return lineObject;
 }
+
+// NOTE line2 doesn't flicker bc of frustum culling, but line does, only after tweening but not on initial create. 
 
 
 export function get_edge_pts(n0, n1) {
@@ -303,6 +306,8 @@ export function get_activation_volume(n, specs){
     let color = get_node_color(n)
     let act_vol_materials = specs.depth_overflow > 0 ? overflow_materials : materials
     let sphere = new THREE.Mesh( box_geometry, act_vol_materials )
+
+    sphere.layers.set(ACTVOL_OBJECTS_LAYER)
 
     sphere.rotation.x = -Math.PI / 2; // Rotate 90 degrees to make it face upward
     sphere.position.y += .1 // shift towards camera so doesn't overlap w edges
@@ -461,22 +466,27 @@ export function remove_plane(op) {
     op.expanded_plane_label = undefined
 }
 
+export function scale_to_zero_and_shift_to_location_then_remove(op, target_position) {
+
+    new TWEEN.Tween(op.mesh.scale)
+        .to({x:0, y:0, z:0}, TWEEN_MS) 
+        .easing(TWEEN_EASE)
+        .start();
+        
+    new TWEEN.Tween(op.mesh.position)
+            .to(target_position, TWEEN_MS) 
+            .easing(TWEEN_EASE)
+            .onComplete(() => {
+                remove_sphere(op)
+            })
+            .start();
+}
+
 export function remove_all_meshes(op, target_position) {
-    if (op.mesh != undefined) { // has node
-        // // dumb manual hack. Otherwise these are all showing, regardless of distance. 
-        // // I think tween messes w distance calc for camera, similar to frustum culling being messed up when transition edges
-        // if (op.active_node_label != undefined) {
-        //     if (op.node_label.element != undefined) {
-        //         op.node_label.element.innerText = "" 
-        //     }
-        // }
-        new TWEEN.Tween(op.mesh.position)
-                .to(target_position, TWEEN_MS) 
-                .easing(TWEEN_EASE)
-                .onComplete(() => {
-                    remove_sphere(op)
-                })
-                .start();
+    if (op.mesh != undefined) { // node
+
+        scale_to_zero_and_shift_to_location_then_remove(op, target_position)
+
     } else if (op.expanded_plane_mesh != undefined) { // plane
         [op.expanded_plane_mesh, op.expanded_plane_background_mesh].forEach(plane => {
             new TWEEN.Tween(plane.position)
