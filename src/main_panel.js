@@ -418,17 +418,9 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
             let n = intersects[ 0 ].object.smaller_sphere.actual_node
 
             if (n.node_type=="module") {
-
                 console.log("clicked ", n)
-
-                n.collapsed = false
-                utils.mark_attr(n, "originating_position", {x:n.x, y:0, z:n.y})
-                recompute_layout()
-                draw_nn()
-                utils.update_labels()
-                utils.mark_attr(n, "originating_position", undefined)
+                expand_op(n)
             }
-
 
         } else if ("expanded_op" in intersects[0].object) { // collapsing an op
             let intersect = intersects[0].object
@@ -444,6 +436,26 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
     }
 
     renderer.render(scene, camera); // necessary?
+  }
+  function expand_op(op){
+    op.collapsed = false
+    utils.mark_attr(op, "originating_position", {x:op.x, y:0, z:op.y})
+    recompute_layout()
+    draw_nn()
+    utils.update_labels()
+    utils.mark_attr(op, "originating_position", undefined)
+  }
+
+  function expand_all_mods_of_class(mod_class) {
+    let to_expand_container = [] // will be populated w ops to collapse
+    utils.mark_all_mods_of_family_as_expanded(globals.nn, mod_class, to_expand_container)
+    to_expand_container.forEach(o => utils.mark_attr(o, "originating_position", {x:o.x, y:0, z:o.y}))
+
+    recompute_layout() // recompute datastructure
+    draw_nn()
+    utils.update_labels()
+
+    to_expand_container.forEach(o => utils.mark_attr(o, "originating_position", undefined))
   }
 
   // collapse single expanded plane into node
@@ -466,21 +478,26 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
 
   // collapse all planes of class into nodes
   function collapse_all_of_mod_class(mod_class) {
-      let to_remove_container = [] // will be populated w ops to collapse
-      utils.mark_all_mods_of_family_as_collapsed(globals.nn, mod_class, to_remove_container)
+      let ops_to_collapse = [] // will be populated w ops to collapse
+      utils.mark_all_mods_of_family_as_collapsed(globals.nn, mod_class, ops_to_collapse)
+      ops_to_collapse.forEach(o => utils.mark_attr(o, "plane_was_at_this_position", {x:o.x, y:0, z:o.y}))
+
       recompute_layout() // recompute datastructure
 
-      to_remove_container.forEach(o => {
+      ops_to_collapse.forEach(o => {
         utils.mark_attr(o, "terminating_position", {x:o.x, y:0, z:o.y}) // for multiple planes simultaneously, has to be done after recompute_layout
         o.is_in_process_of_collapsing = true
         utils.remove_all_meshes(o, {x:o.x, y:0, z:o.y}) // remove the physical meshes
       })
       draw_nn()
       utils.update_labels()
-      to_remove_container.forEach(o => {
+
+      // cleanup
+      ops_to_collapse.forEach(o => {
         utils.mark_attr(o, "terminating_position", undefined)
         delete o.is_in_process_of_collapsing
       })
+      ops_to_collapse.forEach(o => utils.mark_attr(o, "plane_was_at_this_position", undefined))
   }
  
 
@@ -585,8 +602,8 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
                 default_depth = Math.max(default_depth, 2)
                 console.log("default depth ", default_depth, "nodes at depths", depth_counter)
                 // init at collapsed depth
-                mark_for_depth(default_depth) // returns nodes but we don't need them
-                
+                utils.mark_all_mods_past_depth_as_collapsed(default_depth) // returns, but don't need it now bc no transitions
+
                 recompute_layout()
                 draw_nn()
 
@@ -661,6 +678,16 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
       )
     }
   };
+  const contextMenuExpandModule = () => {
+    let op = contextMenu.current_op
+    expand_op(op)
+    handleClose()
+  }
+  const contextMenuExpandAllOfClass = () => {
+    let op = contextMenu.current_op
+    expand_all_mods_of_class(op.name)
+    handleClose()
+  }
   const contextMenuCollapseAllOfClass = () => {
     let op = contextMenu.current_op
     collapse_all_of_mod_class(op.name)
@@ -715,7 +742,10 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
         let op = contextMenu.current_op
         if (op.collapsed) { // collapsed node
             return [
-              <MenuItem onClick={handleClose}>Option 2</MenuItem>,
+              <MenuItem onClick={contextMenuExpandModule}>Expand this module {op.name}</MenuItem>,
+              <MenuItem onClick={contextMenuExpandAllOfClass}>
+                Expand all modules of class {op.name}
+              </MenuItem>,
           ]
         } else { // expanded plane
             return [
@@ -811,41 +841,13 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
 
 export default MainPanel;
 
-function mark_for_depth(level){
-  let ops_to_collapse = []
-  let ops_to_expand = []
-  function gather_ops_for_collapse_and_expansion(op) {
-      if (op.depth < level) {
-          if (op.children.length>0){
-              ops_to_expand.push(op)
-              op.children.forEach(c => gather_ops_for_collapse_and_expansion(c))
-          }
-      } else if (op.depth >= level) {
-          ops_to_collapse.push(op)
-          op.children.forEach(c => gather_ops_for_collapse_and_expansion(c))
-      }
-  }
-
-  gather_ops_for_collapse_and_expansion(globals.nn)
-
-  ops_to_collapse.forEach(o => {
-      if (o.children.length>0){
-          o.collapsed = true
-          utils.remove_all_meshes(o, {x:o.x, y:0, z:o.y})
-      }
-  })
-  ops_to_expand.forEach(o => {
-      if (o.children.length>0){
-          o.collapsed = false
-      }
-  })
-  return [ops_to_collapse, ops_to_expand]
-}
-
 
 function collapse_to_depth(level) {
 
-  let ops_to_collapse = utils.mark_all_mods_past_depth_as_collapsed(level)
+  let [ops_to_collapse, ops_to_expand] = utils.mark_all_mods_past_depth_as_collapsed(level)
+
+  ops_to_expand.forEach(o => utils.mark_attr(o, "originating_position", {x:o.x, y:0, z:o.y}))
+  ops_to_collapse.forEach(o => utils.mark_attr(o, "plane_was_at_this_position", {x:o.x, y:0, z:o.y}))
 
   recompute_layout() // recompute datastructure
 
@@ -862,5 +864,6 @@ function collapse_to_depth(level) {
     utils.mark_attr(o, "terminating_position", undefined)
     delete o.is_in_process_of_collapsing
   })
-
+  ops_to_expand.forEach(o => utils.mark_attr(o, "originating_position", undefined))
+  ops_to_collapse.forEach(o => utils.mark_attr(o, "plane_was_at_this_position", undefined))
 }

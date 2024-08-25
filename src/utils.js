@@ -22,7 +22,7 @@ export let globals = {
     camera: undefined,
     nn: undefined,
     mount: undefined,
-    DEBUG:false,
+    DEBUG:true,
     SHOW_ACTIVATION_VOLUMES:true,
     is_tweening:false,
 }
@@ -73,7 +73,7 @@ box_geometry.translate(-.5, 0, 0) // origin on the right side so box ends where 
 
 
 export const CLICKABLE_LAYER = 1
-export const TWEEN_MS = 2000 // 600
+export const TWEEN_MS = 800
 export const TWEEN_EASE = TWEEN.Easing.Linear.None
 
 export const plane_highlight_color = new THREE.Color(...[228, 229, 230].map(d => d/255));;
@@ -457,16 +457,6 @@ export function remove_sphere(op) {
     op.mesh = undefined
 }
 
-export function remove_plane(op) {
-    scene.remove(op.expanded_plane_label)
-    scene.remove(op.expanded_plane_mesh)
-    scene.remove(op.expanded_plane_background_mesh)
-
-    op.expanded_plane_mesh = undefined
-    op.expanded_plane_background_mesh = undefined
-    op.expanded_plane_label = undefined
-}
-
 export function scale_to_zero_and_shift_to_location_then_remove(op, target_position) {
 
     new TWEEN.Tween(op.mesh.scale)
@@ -483,13 +473,32 @@ export function scale_to_zero_and_shift_to_location_then_remove(op, target_posit
             .start();
 }
 
+function deleteCSS2DLabel(label) { // chatgpt
+    if (label && label.element && label.parent) {
+        // Remove the label from the scene or its parent
+        // label.parent.remove(label);
+        scene.remove(label)
+
+        // Dispose of the label's DOM element
+        if (label.element.parentNode) {
+            label.element.parentNode.removeChild(label.element);
+        }
+    }
+}
+
 export function remove_all_meshes(op, target_position) {
     if (op.mesh != undefined) { // node
 
         scale_to_zero_and_shift_to_location_then_remove(op, target_position)
 
     } else if (op.expanded_plane_mesh != undefined) { // plane
-        [op.expanded_plane_mesh, op.expanded_plane_background_mesh].forEach(plane => {
+
+        // remove label immediately
+        deleteCSS2DLabel(op.expanded_plane_label)
+        op.expanded_plane_label = undefined
+
+        let planes = [op.expanded_plane_mesh, op.expanded_plane_background_mesh] // NOTE if do forEach directly on this array rather than declare it first, then preceding code needs semicolon
+        planes.forEach(plane => { // NOTE TODO we're doing the onComplete twice, fix
             new TWEEN.Tween(plane.position)
                 .to(target_position, TWEEN_MS) 
                 .easing(TWEEN_EASE)
@@ -499,7 +508,11 @@ export function remove_all_meshes(op, target_position) {
                 .to({x:0, y:0, z:0}, TWEEN_MS) 
                 .easing(TWEEN_EASE)
                 .onComplete(() => {
-                    remove_plane(op)
+                    scene.remove(op.expanded_plane_mesh)
+                    scene.remove(op.expanded_plane_background_mesh)
+
+                    op.expanded_plane_mesh = undefined
+                    op.expanded_plane_background_mesh = undefined
                 })
                 .start();
         })
@@ -836,18 +849,32 @@ export function mark_all_mods_of_family_as_collapsed(op, family, to_remove_conta
     }
     op.children.forEach(c => mark_all_mods_of_family_as_collapsed(c, family, to_remove_container))
 }
+export function mark_all_mods_of_family_as_expanded(op, family, to_expand_container){
+    if (op.node_type=="module" && op.name==family && op.collapsed) {
+      op.collapsed = false
+      to_expand_container.push(op)
+    }
+    op.children.forEach(c => mark_all_mods_of_family_as_expanded(c, family, to_expand_container))
+}
 
 export function mark_all_mods_past_depth_as_collapsed(level){
     let to_collapse_container = []
+    let to_expand_container = []
     function _mark_all_mods_past_depth_as_collapsed(o){
-        if (o.node_type=="module" && o.depth>=level && !o.collapsed) {
-            o.collapsed = true
-            to_collapse_container.push(o)
-          }
-          o.children.forEach(c => _mark_all_mods_past_depth_as_collapsed(c))
+        if (o.node_type=="module") {
+            if (o.depth>=level && !o.collapsed) {
+                o.collapsed = true
+                to_collapse_container.push(o)
+            } else if (o.depth<level && o.collapsed) {
+                o.collapsed = false
+                to_expand_container.push(o)
+            }
+            o.children.forEach(c => _mark_all_mods_past_depth_as_collapsed(c))
+        } 
     }
     _mark_all_mods_past_depth_as_collapsed(globals.nn)
-    return to_collapse_container
+
+    return [to_collapse_container, to_expand_container]
 }
 
 // stats, tooltips number formatting

@@ -142,7 +142,7 @@ export default function recompute_layout() {
         }
 
     }
-    prune_children_activation_volumes(nn)
+    //prune_children_activation_volumes(nn)
     ///////////////////////////////////////////////////
 
     
@@ -252,7 +252,9 @@ export default function recompute_layout() {
         let to_shifts, nodes_in_this_input_group
         input_ops_global.forEach(o => {
             to_shifts = []; nodes_in_this_input_group = [o] // to be filled out in mark_next_x_pos
-            let P = 1e6
+            let P = 1e6 
+            // when stranded input global op, eg after pruning sd 1.5 we got this, single op, the gets pushed way far over 
+            // then way stretched out. Will need to deal w this better
             o.x_relative = -P
             mark_next_x_pos(o)
             let to_shift = to_shifts.length==0 ? P : Math.min(...to_shifts) // on first pass through module will be no diffs, so align to zero 

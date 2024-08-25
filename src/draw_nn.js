@@ -104,23 +104,37 @@ export function draw_nn() {
                     }
 
                     if (op.originating_position == undefined) { // first init, directly draw at position 
+
                         sphere.position.x = op.x
                         sphere.position.z = op.y
+
                         // gently tween in the node as the plane is collapsing
                         if (op.is_in_process_of_collapsing) {
-                            let sx = sphere.scale.x; let sy = sphere.scale.y; let sz = sphere.scale.z
+
+                            let target_scale = {x:sphere.scale.x, y:sphere.scale.y, z:sphere.scale.z}
                             sphere.scale.x = 0; sphere.scale.y = 0; sphere.scale.z = 0
-
-                            // TODO put this back in now that updated w labels_pool
-                            // let orig_label = op.node_label.element.innerText
-                            // op.node_label.element.innerText = "" 
-
                             all_tweens.push(new TWEEN.Tween(sphere.scale)
-                                .to({x:sx, y:sy, z:sz}, TWEEN_MS) 
+                                .to(target_scale, TWEEN_MS) 
                                 .easing(TWEEN_EASE)
                                 .onComplete(() => {
                                     // op.node_label.element.innerText = orig_label
                                 }))
+                            
+                            // when collapsing multiple planes, need to also tween the expanding sphere from prev plane location.
+                            // when single plane collapsing this doesn't matter bc collapsing into top left corner
+                            if (op.plane_was_at_this_position !== undefined) {
+                                let prev_pos = op.plane_was_at_this_position
+                                let target_pos = {x:sphere.position.x, y:sphere.position.y, z:sphere.position.z}
+                                sphere.position.x = prev_pos.x; sphere.position.y = prev_pos.y; sphere.position.z = prev_pos.z
+    
+                                all_tweens.push(new TWEEN.Tween(sphere.position)
+                                    .to(target_pos, TWEEN_MS) 
+                                    .easing(TWEEN_EASE)
+                                    .onComplete(() => {
+                                        // op.node_label.element.innerText = orig_label
+                                    }))
+                            }
+
                         }
                     } else { // from expanding op
                         sphere.position.x = op.originating_position.x // init at expanding op position, then transition to new position
@@ -230,13 +244,17 @@ export function draw_nn() {
                 plane_background.expanded_op = op
                 scene.add(plane_background)
 
+
                 let group_label = utils.get_group_label(op)
                 group_label.position.set(target_pos.x + w/2, target_pos.y, target_pos.z + h/2);
                 group_label.center.set(1, 1);
 
-                if (!(op.name=="Root")) {
-                    scene.add(group_label)
-                }
+                // not adding label until plane is fully expanded
+                setTimeout(() => {
+                    if (!(op.name=="Root")) {
+                        scene.add(group_label)
+                    }
+                }, TWEEN_MS);
 
                 op.expanded_plane_mesh = plane
                 op.expanded_plane_background_mesh = plane_background
@@ -580,14 +598,24 @@ export function draw_nn() {
                 // there will already be a curve at this exact location (going into module) so it won't look abrubt
                 let p = n1.originating_position
                 let prev_n1 = {x:p.x, y:p.z, y_unshifted:p.z} // confusing attrs. mimicing a node bc that's what fn get_edge_pts expects
-                let pts = utils.get_edge_pts(n0, prev_n1) 
+                
+                // kindof a hack for now. The mesh has the old position. This doesn't matter when just expanding a single mod,
+                // but when multiple are expanding then both endpoints of the line will be updated, so we want to init BOTH to their prev
+                // positions. We've marked 'originating_position' on the nodes within the expanding module, but the other end of the line 
+                // we're grabbing the old position from the mesh itself. 
+                let pp = n0.mesh.position
+                let prev_n0 = {x:pp.x, y:pp.z, y_unshifted:pp.z}
+
+                // let pts = utils.get_edge_pts(n0, prev_n1) 
+                let pts = utils.get_edge_pts(prev_n0, prev_n1) 
                 let [linewidth, color] = get_linewidth_and_color(n0,n1) 
                 let line_obj = utils.get_line_from_pts(pts, linewidth, color)
     
                 line_obj.userData.pts = pts
     
                 curves_lookup[edge_id] = {}
-                curves_lookup[edge_id].edge_package = [line_obj, n0.x, n0.y, prev_n1.x, prev_n1.y]
+                // curves_lookup[edge_id].edge_package = [line_obj, n0.x, n0.y, prev_n1.x, prev_n1.y]
+                curves_lookup[edge_id].edge_package = [line_obj, prev_n0.x, prev_n0.y, prev_n1.x, prev_n1.y]
                 curves_lookup[edge_id].still_exists = true
                 curves_lookup[edge_id].nodes = [n0, n1]
     
@@ -602,14 +630,21 @@ export function draw_nn() {
                 // there will already be a curve at this exact location (leaving module) so it won't look abrubt
                 let p = n0.originating_position
                 let prev_n0 = {x:p.x, y:p.z, y_unshifted:p.z} // confusing attrs. mimicing a node bc that's what fn get_edge_pts expects
-                let pts = utils.get_edge_pts(prev_n0, n1) 
+                
+                // kindof hack to init line at old position of BOTH nodes in case of multiple expanding ops
+                let pp = n1.mesh.position
+                let prev_n1 = {x:pp.x, y:pp.z, y_unshifted:pp.z}
+
+                // let pts = utils.get_edge_pts(prev_n0, n1) 
+                let pts = utils.get_edge_pts(prev_n0, prev_n1) 
                 let [linewidth, color] = get_linewidth_and_color(n0,n1) 
                 let line_obj = utils.get_line_from_pts(pts, linewidth, color)
     
                 line_obj.userData.pts = pts
     
                 curves_lookup[edge_id] = {}
-                curves_lookup[edge_id].edge_package = [line_obj, prev_n0.x, prev_n0.y, n1.x, n1.y]
+                // curves_lookup[edge_id].edge_package = [line_obj, prev_n0.x, prev_n0.y, n1.x, n1.y]
+                curves_lookup[edge_id].edge_package = [line_obj, prev_n0.x, prev_n0.y, prev_n1.x, prev_n1.y]
                 curves_lookup[edge_id].still_exists = true
                 curves_lookup[edge_id].nodes = [n0, n1]
     

@@ -179,5 +179,6 @@
     "marigold": "marigold",
     "rtdetr_r50vd": "rtdetr_r50vd",
     "upernet-convnext-tiny": "upernet-convnext-tiny",
-    "vit-msn-small": "vit-msn-small"
+    "vit-msn-small": "vit-msn-small",
+    "SDXL-Lightening-1step": "SDXL-Lightening-1step"
 }
