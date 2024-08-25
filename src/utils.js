@@ -22,6 +22,9 @@ export let globals = {
     camera: undefined,
     nn: undefined,
     mount: undefined,
+    DEBUG:false,
+    SHOW_ACTIVATION_VOLUMES:true,
+    is_tweening:false,
 }
 export const MINIMAP_OBJECTS_LAYER = 3
 export const ACTVOL_OBJECTS_LAYER = 4
@@ -55,8 +58,6 @@ export const white_color = new THREE.Color(1,1,1);
 export const plane_color_darker = new THREE.Color(...[228, 229, 230].map(d => d/255));
 export const plane_outline_color = new THREE.Color(...[58, 124, 165].map(d=>d/255))
 
-export const DEBUG = true
-
 // doesn't seem to be much perf effect here if any
 export const CURVE_N_PTS = 20 //50
 
@@ -72,7 +73,7 @@ box_geometry.translate(-.5, 0, 0) // origin on the right side so box ends where 
 
 
 export const CLICKABLE_LAYER = 1
-export const TWEEN_MS = 2000 //600
+export const TWEEN_MS = 2000 // 600
 export const TWEEN_EASE = TWEEN.Easing.Linear.None
 
 export const plane_highlight_color = new THREE.Color(...[228, 229, 230].map(d => d/255));;
@@ -154,7 +155,7 @@ export function get_line_from_pts(pts, linewidth, color) {
 
 
 export function get_edge_pts(n0, n1) {
-    let same_y = DEBUG ? n0.y_unshifted==n1.y_unshifted : n0.y==n1.y 
+    let same_y = globals.DEBUG ? n0.y_unshifted==n1.y_unshifted : n0.y==n1.y 
     let x_dist = n1.x - n0.x
     let pt1 = {x:n0.x, y:0, z:n0.y} // n0
     let pt2 = {x:n1.x, y:0, z:n1.y} // n1
@@ -194,7 +195,7 @@ export function get_edge_pts(n0, n1) {
 // let elbow = {x:elbow_x, y:0, z:n0.y}
 
 export function get_node_color(n) {
-    if (DEBUG){
+    if (globals.DEBUG){
         if (n.conditioning_entering_respath) {
             return new THREE.Color("green")
         } else if (n.remove_this_aux_output) {
@@ -828,53 +829,26 @@ export function get_upstream_nodes_from_group(base_op, ops) {
     return ops.filter(o => base_op.uns.includes(o.node_id))
 }
 
-
-
-
-export function collapse_to_depth(level) {
-    let ops_to_collapse = []
-    let ops_to_expand = []
-    function gather_ops_for_collapse_and_expansion(op) {
-        if (op.depth < level) {
-            if (op.children.length>0){
-                ops_to_expand.push(op)
-                op.children.forEach(c => gather_ops_for_collapse_and_expansion(c))
-            }
-        } else if (op.depth >= level) {
-            ops_to_collapse.push(op)
-            op.children.forEach(c => gather_ops_for_collapse_and_expansion(c))
-        }
-    }
-    gather_ops_for_collapse_and_expansion(globals.nn)
-
-    ops_to_collapse.forEach(o => {
-        if (o.children.length>0){
-            mark_as_collapsed(o, true, false)
-            remove_all_meshes(o, {x:o.x, y:0, z:o.y})
-        }
-    })
-    ops_to_expand.forEach(o => {
-        if (o.children.length>0){
-            mark_as_collapsed(o, false, false)
-        }
-    })
-}
-
-export function mark_as_collapsed(op, is_collapsed, propogate_to_children){
-    op.collapsed = is_collapsed
-    if (propogate_to_children) {
-        op.children.forEach(c => mark_as_collapsed(c, is_collapsed, propogate_to_children))
-    }
-}
-
-export function mark_all_mods_of_family_as_collapsed(op, family, is_collapsed, to_remove_container){
-    if (op.node_type=="module" && op.name==family) {
-      op.collapsed = is_collapsed
+export function mark_all_mods_of_family_as_collapsed(op, family, to_remove_container){
+    if (op.node_type=="module" && op.name==family && !op.collapsed) {
+      op.collapsed = true
       to_remove_container.push(op)
     }
-    op.children.forEach(c => mark_all_mods_of_family_as_collapsed(c, family, is_collapsed, to_remove_container))
+    op.children.forEach(c => mark_all_mods_of_family_as_collapsed(c, family, to_remove_container))
 }
 
+export function mark_all_mods_past_depth_as_collapsed(level){
+    let to_collapse_container = []
+    function _mark_all_mods_past_depth_as_collapsed(o){
+        if (o.node_type=="module" && o.depth>=level && !o.collapsed) {
+            o.collapsed = true
+            to_collapse_container.push(o)
+          }
+          o.children.forEach(c => _mark_all_mods_past_depth_as_collapsed(c))
+    }
+    _mark_all_mods_past_depth_as_collapsed(globals.nn)
+    return to_collapse_container
+}
 
 // stats, tooltips number formatting
 export function formatNumParams(num) {

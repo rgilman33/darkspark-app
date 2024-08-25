@@ -278,7 +278,7 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
             update_main_window_from_minimap_window()
             render_minimap()
           } else {
-            if (camera_moved_or_zoomed) {
+            if (camera_moved_or_zoomed || globals.is_tweening) {
               update_minimap_window_from_main_window()
               render_minimap()
             }
@@ -335,7 +335,6 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
       return { clientX: screenX, clientY: screenY };
   }
 
-  let currently_hovering
   function onMouseMove(event) {
     raycaster.layers.set(CLICKABLE_LAYER)
     const sidebarWidth = 0 //document.querySelector('.sidebar').offsetWidth;
@@ -361,7 +360,6 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
                 INTERSECTED.material.color = utils.node_highlight_color 
 
                 console.log("mouseover node", INTERSECTED.actual_node)
-                currently_hovering = INTERSECTED.actual_node
 
                 let screen_coords = getScreenCoordinates(INTERSECTED)
 
@@ -385,7 +383,6 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
                 INTERSECTED.prev_color = c
                 INTERSECTED.material.color = utils.plane_highlight_color
 
-                currently_hovering = intersects[ 0 ].object.expanded_op
                 setHoveredObject(intersects[ 0 ].object.expanded_op);
 
                 if (is_shift) console.log("mouseover plane", intersects[ 0 ].object.expanded_op)
@@ -398,7 +395,6 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
         if ( INTERSECTED ) INTERSECTED.material.color = INTERSECTED.prev_color;
         INTERSECTED = null;
         setTooltipObject(null);
-        currently_hovering = null
         setHoveredObject(null)
     }
   }
@@ -425,7 +421,7 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
 
                 console.log("clicked ", n)
 
-                utils.mark_as_collapsed(n, false, false)
+                n.collapsed = false
                 utils.mark_attr(n, "originating_position", {x:n.x, y:0, z:n.y})
                 recompute_layout()
                 draw_nn()
@@ -452,7 +448,7 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
 
   // collapse single expanded plane into node
   function collapse_op(op) {
-      utils.mark_as_collapsed(op, true, false) // mark the datastructure
+      op.collapsed = true
       recompute_layout() // recompute datastructure
 
       // 'terminating_position' is the location of the plane after it has collapsed
@@ -471,7 +467,7 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
   // collapse all planes of class into nodes
   function collapse_all_of_mod_class(mod_class) {
       let to_remove_container = [] // will be populated w ops to collapse
-      utils.mark_all_mods_of_family_as_collapsed(globals.nn, mod_class, true, to_remove_container)
+      utils.mark_all_mods_of_family_as_collapsed(globals.nn, mod_class, to_remove_container)
       recompute_layout() // recompute datastructure
 
       to_remove_container.forEach(o => {
@@ -589,7 +585,10 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
                 default_depth = Math.max(default_depth, 2)
                 console.log("default depth ", default_depth, "nodes at depths", depth_counter)
                 // init at collapsed depth
-                utils.collapse_to_depth(default_depth)
+                mark_for_depth(default_depth) // returns nodes but we don't need them
+                
+                recompute_layout()
+                draw_nn()
 
                 setDropdownValue(default_depth)
                 const depth_values = [];
@@ -598,9 +597,6 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
                 console.timeEnd("calc default depth")
 
                 /////
-                recompute_layout()
-                
-                draw_nn()
 
                 // minimap window plane
                 scene.add(minimap_window)
@@ -645,13 +641,7 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
     // end load new nn
     } else if (filters.dropdownValue) { 
         // dropdown value changed in control panel
-        function _collapse_to_depth(level) {
-            utils.collapse_to_depth(level)
-            recompute_layout()
-            draw_nn()
-            utils.update_labels()
-        }
-        _collapse_to_depth(filters.dropdownValue)
+        collapse_to_depth(filters.dropdownValue)
     }
 
   }, [filters])
@@ -681,13 +671,36 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
     collapse_op(op)
     handleClose()
   }
-  // function singleClick(event) {
-  //   console.log(currently_hovering)
-  //   // if (currently_hovering != null) {
-  //   //   handleRightClick(event)
-  //   //   console.log("single click")
-  //   // }
-  // }
+  const contextMenuDebugModeOn = () => {
+    globals.DEBUG = true
+
+    simple_remake_sequence()
+    handleClose()
+  }
+  const contextMenuDebugModeOff = () => {
+    globals.DEBUG = false
+
+    simple_remake_sequence()
+    handleClose()
+  }
+  const contextMenuShowActivationVolumesOn = () => {
+    globals.SHOW_ACTIVATION_VOLUMES = true
+
+    simple_remake_sequence()
+    handleClose()
+  }
+  const contextMenuShowActivationVolumesOff = () => {
+    globals.SHOW_ACTIVATION_VOLUMES = false
+
+    simple_remake_sequence()
+    handleClose()
+  }
+  function simple_remake_sequence(){
+    // convenience, for when we don't need to do the separate parts individually
+    recompute_layout()
+    draw_nn()
+    utils.update_labels()
+  }
 
   let tooltip_attrs_list = ['node_id', "dist_from_end_originator_count", "dist_from_end_global", "respath_dist", 
         "dist_from_start_originator_count", "dist_from_start_global",
@@ -715,8 +728,10 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
 
     } else { // no current op hovered over, root menu
       return [
-        <MenuItem onClick={handleClose}>Option 2</MenuItem>,
-        <MenuItem onClick={handleClose}>Option 3</MenuItem>,
+        <MenuItem onClick={contextMenuDebugModeOn}>Turn on debug mode</MenuItem>,
+        <MenuItem onClick={contextMenuDebugModeOff}>Turn off debug mode</MenuItem>,
+        <MenuItem onClick={contextMenuShowActivationVolumesOn}>Show activation volumes</MenuItem>,
+        <MenuItem onClick={contextMenuShowActivationVolumesOff}>Hide activation volumes</MenuItem>,
     ]
     }
 
@@ -795,3 +810,57 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
 
 
 export default MainPanel;
+
+function mark_for_depth(level){
+  let ops_to_collapse = []
+  let ops_to_expand = []
+  function gather_ops_for_collapse_and_expansion(op) {
+      if (op.depth < level) {
+          if (op.children.length>0){
+              ops_to_expand.push(op)
+              op.children.forEach(c => gather_ops_for_collapse_and_expansion(c))
+          }
+      } else if (op.depth >= level) {
+          ops_to_collapse.push(op)
+          op.children.forEach(c => gather_ops_for_collapse_and_expansion(c))
+      }
+  }
+
+  gather_ops_for_collapse_and_expansion(globals.nn)
+
+  ops_to_collapse.forEach(o => {
+      if (o.children.length>0){
+          o.collapsed = true
+          utils.remove_all_meshes(o, {x:o.x, y:0, z:o.y})
+      }
+  })
+  ops_to_expand.forEach(o => {
+      if (o.children.length>0){
+          o.collapsed = false
+      }
+  })
+  return [ops_to_collapse, ops_to_expand]
+}
+
+
+function collapse_to_depth(level) {
+
+  let ops_to_collapse = utils.mark_all_mods_past_depth_as_collapsed(level)
+
+  recompute_layout() // recompute datastructure
+
+  ops_to_collapse.forEach(o => {
+    utils.mark_attr(o, "terminating_position", {x:o.x, y:0, z:o.y}) // for multiple planes simultaneously, has to be done after recompute_layout
+    o.is_in_process_of_collapsing = true
+    utils.remove_all_meshes(o, {x:o.x, y:0, z:o.y}) // remove the physical meshes
+  })
+  draw_nn()
+  utils.update_labels()
+
+  // cleanup
+  ops_to_collapse.forEach(o => {
+    utils.mark_attr(o, "terminating_position", undefined)
+    delete o.is_in_process_of_collapsing
+  })
+
+}

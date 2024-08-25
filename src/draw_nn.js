@@ -739,5 +739,9 @@ export function draw_nn() {
     console.timeEnd("draw edges, actually draw them")
 
     // start all tweens at the same time for synchronicity
+    globals.is_tweening = true // used so minimap knows to update itself
     all_tweens.forEach(t => t.start())
+    setTimeout(() => {
+        globals.is_tweening = false
+    }, TWEEN_MS);
 }

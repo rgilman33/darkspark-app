@@ -1,6 +1,5 @@
 
 import { globals } from "./utils"
-import { DEBUG } from "./utils"
 import * as utils from './utils'
 
 ///////////////////////////////
@@ -51,7 +50,7 @@ export default function recompute_layout() {
                 "avg_pool2d", "adaptive_avg_pool2d", "adaptive_avg_pool1d"] 
     let show_act_vol_if_shape_changes = ["__getitem__", "chunk", "split", "unfold", "stack"]
     function should_draw_act_volume(op){
-        if (op.is_tensor_node) {
+        if (globals.SHOW_ACTIVATION_VOLUMES && op.is_tensor_node) {
             if (op.is_global_input || op.is_output_global) {
                 return true
             } else if (op.node_type=="mod_out"){
@@ -495,7 +494,7 @@ export default function recompute_layout() {
         }
 
         ///////////////////////////
-        if (!DEBUG) {
+        if (!globals.DEBUG) {
             let input_nodes_can_be_removed = true
             op.children.forEach(o => {
                 if (o.is_output) { 
@@ -585,7 +584,7 @@ export default function recompute_layout() {
     // debugging
     function random_shift(op) {
         op.y_unshifted = op.y
-        if (DEBUG) { op.y += Math.random()*.2 }
+        if (globals.DEBUG) { op.y += Math.random()*.2 }
         op.children.forEach(c => random_shift(c))
     }
     random_shift(nn)
@@ -633,7 +632,7 @@ export default function recompute_layout() {
             op.is_global_input || 
             op.node_type=="fn_out" || 
             op.node_type=="mod_out") &&
-            !op.node_is_extraneous_io) || DEBUG || op.is_activation_volume
+            !op.node_is_extraneous_io) || globals.DEBUG || op.is_activation_volume
             ) {
                 op.should_draw = true
         } else {
