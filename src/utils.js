@@ -14,6 +14,7 @@ import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry';
 
 export let globals = {
     max_depth: undefined,
+    max_depth_visible: undefined,
     curves_lookup: {},
     nodes_lookup: {},
 
@@ -22,7 +23,7 @@ export let globals = {
     camera: undefined,
     nn: undefined,
     mount: undefined,
-    DEBUG:true,
+    DEBUG:false,
     SHOW_ACTIVATION_VOLUMES:true,
     is_tweening:false,
 }
@@ -50,7 +51,9 @@ export function get_edge_color(brightness_factor) {
 }
 
 export const node_color = new THREE.Color(...[22, 66, 91].map(d=>d/255))
-export const node_highlight_color = new THREE.Color(...[58, 124, 165].map(d=>d/255))
+
+let highlight_color = new THREE.Color(...[224, 122, 95].map(d => d/255));
+export const node_highlight_color = highlight_color
 
 // const scene_background_color = new THREE.Color(...[248, 249, 250].map(d => d/255));
 export const plane_color = new THREE.Color(...[248, 249, 250].map(d => d/255));
@@ -76,7 +79,7 @@ export const CLICKABLE_LAYER = 1
 export const TWEEN_MS = 800
 export const TWEEN_EASE = TWEEN.Easing.Linear.None
 
-export const plane_highlight_color = new THREE.Color(...[228, 229, 230].map(d => d/255));;
+export const plane_highlight_color = highlight_color
 
 ///////////////////////////////
 // viz utils
@@ -239,15 +242,11 @@ export function get_z_plane(op) {
 	return interp(op.depth, [0,100], [-10, -1])
 }
 
-export function get_plane_color(op, _max_depth) {
+export function get_plane_color(op) {
 	let d = op.depth
-	let d_range = [0, _max_depth]
-	// let c2 = [248, 249, 250]
-	// let c1 = [233, 236, 239]
-	// let c1 = [173, 181, 189]
+	let d_range = [1, globals.max_depth_visible-1]
 	let c1 = [173, 181, 189]
 	let c2 = [248, 249, 250]
-	// let c2 = [108, 117, 125]
 
 	c1 = c1.map(d => d/255)
 	c2 = c2.map(d => d/255)
@@ -723,7 +722,7 @@ function update_planes_labels() {
     
     // Function to calculate bounding box of a label
     const calculateBoundingBox = (label, coords) => {
-        const padding = 2; // Small padding value to ensure overlap detection accuracy
+        const padding = 6 //2; // Small padding value to ensure overlap detection accuracy
         const width = label.element.offsetWidth + padding;
         const height = label.element.offsetHeight + padding;
         // Adjust x and y to represent the center position

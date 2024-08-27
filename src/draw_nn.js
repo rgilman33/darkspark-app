@@ -34,7 +34,7 @@ export function draw_nn() {
             if (op.is_activation_volume && op.tensor_node_type=="standard_node" && op.mesh != undefined) {
                 // wasn't an actvol before but is now
                 // note we're grabbing position from mesh object itself, which we don't normally do
-                let prev_pos = {x: op.mesh.position.x, y:op.mesh.position.y, z:op.mesh.position.z}
+                let prev_pos = {x: op.mesh.position.x, y:op.mesh.position.y, z:op.mesh.position.z} // TODO this is now cached, use that one instead
                 utils.remove_sphere(op)
 
                 // init actvol at location of prev square, tween to full scale
@@ -174,7 +174,7 @@ export function draw_nn() {
             // Draw or shift plane
             if (op.expanded_plane_mesh == undefined) { // new planes, make for first time
                 const geometry = new THREE.PlaneGeometry(1, 1, 1, 1); // Width, height, and optional segment counts
-                let color = white_color //get_plane_color(op, max_depth)
+                let color = utils.get_plane_color(op)
                 const material = new THREE.MeshBasicMaterial({color: color})
                 let plane = new THREE.Mesh(geometry, material);
                 plane.layers.set(CLICKABLE_LAYER)
@@ -286,7 +286,7 @@ export function draw_nn() {
                     .easing(TWEEN_EASE))
 
                     
-                plane.material.color = utils.get_plane_color(op, globals.max_depth) // depth changes scale
+                plane.material.color = utils.get_plane_color(op) // depth changes scale
 
                 // label location
                 let group_label = op.expanded_plane_label
@@ -603,8 +603,9 @@ export function draw_nn() {
                 // but when multiple are expanding then both endpoints of the line will be updated, so we want to init BOTH to their prev
                 // positions. We've marked 'originating_position' on the nodes within the expanding module, but the other end of the line 
                 // we're grabbing the old position from the mesh itself. 
-                let pp = n0.mesh.position
-                let prev_n0 = {x:pp.x, y:pp.z, y_unshifted:pp.z}
+                // let pp = n0.mesh.position // TODO this doesn't work when not debug mode, bc this mesh won't exist
+                let pp = n0.prev_pos // TODO this doesn't work when not debug mode, bc this mesh won't exist
+                let prev_n0 = {x:pp.x, y:pp.y, y_unshifted:pp.y}
 
                 // let pts = utils.get_edge_pts(n0, prev_n1) 
                 let pts = utils.get_edge_pts(prev_n0, prev_n1) 
@@ -632,8 +633,9 @@ export function draw_nn() {
                 let prev_n0 = {x:p.x, y:p.z, y_unshifted:p.z} // confusing attrs. mimicing a node bc that's what fn get_edge_pts expects
                 
                 // kindof hack to init line at old position of BOTH nodes in case of multiple expanding ops
-                let pp = n1.mesh.position
-                let prev_n1 = {x:pp.x, y:pp.z, y_unshifted:pp.z}
+                // let pp = n1.mesh.position
+                let pp = n1.prev_pos
+                let prev_n1 = {x:pp.x, y:pp.y, y_unshifted:pp.y}
 
                 // let pts = utils.get_edge_pts(prev_n0, n1) 
                 let pts = utils.get_edge_pts(prev_n0, prev_n1) 

@@ -11,6 +11,13 @@ export default function recompute_layout() {
 
     let nn = globals.nn
     
+    ///////////////////////////////////////////
+    // cache prev positions
+    function cache_prev_position(op) {
+        op.prev_pos = {x:op.x, y:op.y}
+        op.children.forEach(c => cache_prev_position(c))
+    }
+    cache_prev_position(nn)
 
     ///////////////////////////////////////////////
     ///////////////////////////////////////////////
@@ -641,6 +648,19 @@ export default function recompute_layout() {
             op.should_draw = false
         }
     }
+
+    //////////////////////////////
+    // visible max depth
+    globals.max_depth_visible = 0
+    function set_visible_max_depth(op) {
+      globals.max_depth_visible = Math.max(globals.max_depth_visible, (op.depth ? op.depth : 0))
+        if (!op.collapsed){
+            op.children.forEach(c => set_visible_max_depth(c))
+        }
+    }
+    set_visible_max_depth(nn)
+    console.log("max depth visible", globals.max_depth_visible)
+
 
 
     console.timeEnd("compute layout")

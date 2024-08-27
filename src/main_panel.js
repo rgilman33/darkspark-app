@@ -349,9 +349,7 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
         if ("smaller_sphere" in intersects[ 0 ].object) {
             if ( INTERSECTED != intersects[ 0 ].object.smaller_sphere ) {
 
-                if ( INTERSECTED ) { // going from one selected to another
-                    INTERSECTED.material.color = INTERSECTED.prev_color
-                }
+                clear_highlight_on_prev_intersected()
 
                 INTERSECTED = intersects[ 0 ].object.smaller_sphere;
                 let c = INTERSECTED.material.color
@@ -359,6 +357,13 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
 
                 INTERSECTED.material.color = utils.node_highlight_color 
 
+                // let bigger = {x:INTERSECTED.scale.x+sphere_extra_on_hover, y:INTERSECTED.scale.y+sphere_extra_on_hover, z:INTERSECTED.scale.z}
+                // new TWEEN.Tween(INTERSECTED.scale)
+                //     .to(bigger, 100)
+                //     .easing(utils.TWEEN_EASE)
+                //     .start()
+                INTERSECTED.scale.x += sphere_extra_on_hover
+                INTERSECTED.scale.y += sphere_extra_on_hover
                 console.log("mouseover node", INTERSECTED.actual_node)
 
                 let screen_coords = getScreenCoordinates(INTERSECTED)
@@ -374,14 +379,25 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
 
             if ( INTERSECTED != intersects[ 0 ].object ) {
 
-                if ( INTERSECTED ) { // going from one selected to another
-                    INTERSECTED.material.color = INTERSECTED.prev_color
-                }
+                clear_highlight_on_prev_intersected()
 
                 INTERSECTED = intersects[ 0 ].object;
-                let c = INTERSECTED.material.color
-                INTERSECTED.prev_color = c
-                INTERSECTED.material.color = utils.plane_highlight_color
+                let background_plane = INTERSECTED.expanded_op.expanded_plane_background_mesh
+                
+                let c = background_plane.material.color
+                background_plane.prev_color = c
+                background_plane.material.color = utils.plane_highlight_color
+                
+                // let bigger = {x:background_plane.scale.x+plane_outline_extra_on_hover, 
+                //               y:background_plane.scale.y+plane_outline_extra_on_hover, 
+                //               z:background_plane.scale.z}
+                // new TWEEN.Tween(background_plane.scale)
+                //     .to(bigger, 100)
+                //     .easing(utils.TWEEN_EASE)
+                //     .start()
+                    
+                background_plane.scale.x += plane_outline_extra_on_hover
+                background_plane.scale.y += plane_outline_extra_on_hover
 
                 setHoveredObject(intersects[ 0 ].object.expanded_op);
 
@@ -392,11 +408,29 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
             console.log("mouseover unknown something", intersects[0])
         }
     } else { // no selected at all
-        if ( INTERSECTED ) INTERSECTED.material.color = INTERSECTED.prev_color;
+        clear_highlight_on_prev_intersected()
         INTERSECTED = null;
         setTooltipObject(null);
         setHoveredObject(null)
     }
+  }
+  let plane_outline_extra_on_hover = .14 // TODO should be responsive to current zoom, more constant in screen space
+  let sphere_extra_on_hover = .06
+  function clear_highlight_on_prev_intersected() {
+      if ( INTERSECTED ) { // going from one selected to another
+          if ("expanded_op" in INTERSECTED) { // plane
+              let background_plane = INTERSECTED.expanded_op.expanded_plane_background_mesh
+              if (background_plane){
+                background_plane.material.color = background_plane.prev_color
+                background_plane.scale.x -= plane_outline_extra_on_hover
+                background_plane.scale.y -= plane_outline_extra_on_hover
+              }
+          } else {
+              INTERSECTED.material.color = INTERSECTED.prev_color
+              INTERSECTED.scale.x -= sphere_extra_on_hover
+              INTERSECTED.scale.y -= sphere_extra_on_hover
+          }
+      }
   }
 
   function onPointerDown( event ) {
@@ -564,7 +598,6 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
                 link_upstream_nodes(nn)
                 console.timeEnd("linking upstream nodes")
                 //
-
                 // set max depth, used for scales
                 globals.max_depth = 0
                 function set_max_depth(op) {
