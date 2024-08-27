@@ -649,7 +649,7 @@ function remove_label_from_op_and_return_to_pool(op) {
         let label = op.active_node_label
         op.mesh.remove(label) // remove from three.js Group
     
-        // label.element.style.display = 'none' doesn't work, that wasted an hour
+        // label.element.style.display = 'none' // doesn't work, that wasted an hour
         label.visible = false // i think this overrides manually setting it. Have to do it this way. 
     
         // set all spans as display none. Can use the display==none technique here, though not on the style of the base div element (that is overridden by label.visible)
@@ -683,13 +683,95 @@ function update_nodes_labels() {
       }
     })
 
-    // only needed after collapse or expansion, not during controls. Could be separate fn but shouldn't be expensive bc not too many in all_labels
+    // only needed after collapse or expansion, not during panning. Could be separate fn but shouldn't be expensive bc not too many in all_labels
     globals.all_labels.forEach(label => {
         if (label.current_op && !label.current_op.is_currently_visible_node) {
             remove_label_from_op_and_return_to_pool(label.current_op)
         }
     })
+
+    // 
+    hide_overlapping_labels()
   }
+
+function hide_overlapping_labels() {
+
+    let active_labels = globals.all_labels.filter(l => l.current_op)
+    
+    // Reset all labels to be visible initially
+    active_labels.forEach(l => l.visible = true)
+    
+    // Iterate through the labelRects to check for overlaps
+    for (let i = 0; i < active_labels.length; i++) {
+        for (let j = i + 1; j < active_labels.length; j++) {
+            let l1 = active_labels[i]
+            let l2 = active_labels[j]
+            if ((l1.current_op.node_id=="00000040") && (l2.current_op.node_id=="00000044")) {
+                // console.log(l1.element.getBoundingClientRect(), l2.element.getBoundingClientRect())
+                console.log(doDivsIntersect(l1.element, l2.element))
+            }
+            if (l1.visible && l2.visible) { // if both are still visible
+                if (doDivsIntersect(l1.element, l2.element)) { // if overlap, hide one
+                    // l1.visible = false
+                } 
+            }
+        }
+    }
+}
+
+function doDivsIntersect(div1, div2) {
+    // Get bounding rectangles of both divs
+    const rect1 = div1.getBoundingClientRect();
+    const rect2 = div2.getBoundingClientRect();
+
+    // Check if the rectangles overlap
+    const overlap = !(
+        rect1.right < rect2.left ||   // rect1 is to the left of rect2
+        rect1.left > rect2.right ||   // rect1 is to the right of rect2
+        rect1.bottom < rect2.top ||   // rect1 is above rect2
+        rect1.top > rect2.bottom      // rect1 is below rect2
+    );
+
+    return overlap;
+}
+    
+// from chatgpt
+const getScreenCoordinates = (object, cam) => {
+    const vector = new THREE.Vector3();
+    object.getWorldPosition(vector);
+    vector.project(cam);
+
+    const x = (vector.x * 0.5 + 0.5) * globals.mount.clientWidth;
+    const y = (vector.y * -0.5 + 0.5) * globals.mount.clientHeight;
+    return { x, y, v:vector };
+};
+
+// Function to calculate bounding box of a label
+const calculateBoundingBox = (label, coords) => {
+    const padding = 6 //2; // Small padding value to ensure overlap detection accuracy
+    const width = label.element.offsetWidth + padding;
+    const height = 8 //label.element.offsetHeight + padding;
+    // Adjust x and y to represent the center position
+    const x = coords.x - width / 2;
+    const y = coords.y - height / 2;
+    return { x, y, width, height, label };
+};
+
+const checkOverlap = (rect1, rect2) => {
+    return (
+        rect1.x < rect2.x + rect2.width &&
+        rect1.x + rect1.width > rect2.x &&
+        rect1.y < rect2.y + rect2.height &&
+        rect1.y + rect1.height > rect2.y
+    );
+};
+
+function get_bb(label) {
+    const coords = getScreenCoordinates(label, globals.camera);
+    let bb = calculateBoundingBox(label, coords);
+    return bb
+}
+
 
 function update_planes_labels() { 
 
@@ -709,28 +791,6 @@ function update_planes_labels() {
     })
 
     // Of those within distance, remove if overlap
-
-    // from chatgpt
-    const getScreenCoordinates = (object, cam) => {
-        const vector = new THREE.Vector3();
-        object.getWorldPosition(vector);
-        vector.project(cam);
-        const x = (vector.x * 0.5 + 0.5) * globals.mount.clientWidth;
-        const y = (vector.y * -0.5 + 0.5) * globals.mount.clientHeight;
-        return { x, y };
-    };
-    
-    // Function to calculate bounding box of a label
-    const calculateBoundingBox = (label, coords) => {
-        const padding = 6 //2; // Small padding value to ensure overlap detection accuracy
-        const width = label.element.offsetWidth + padding;
-        const height = label.element.offsetHeight + padding;
-        // Adjust x and y to represent the center position
-        const x = coords.x - width / 2;
-        const y = coords.y - height / 2;
-        return { x, y, width, height, label };
-    };
-    
     // Reset all labels to be visible initially
     consider_drawing.forEach(op => {
         // op.expanded_plane_label.element.style.display = 'block'; // doesn't work, have to set visible
@@ -743,15 +803,6 @@ function update_planes_labels() {
         bb.name = op.name
         return bb
     });
-    
-    const checkOverlap = (rect1, rect2) => {
-        return (
-            rect1.x < rect2.x + rect2.width &&
-            rect1.x + rect1.width > rect2.x &&
-            rect1.y < rect2.y + rect2.height &&
-            rect1.y + rect1.height > rect2.y
-        );
-    };
     
     // Iterate through the labelRects to check for overlaps
     for (let i = 0; i < labelRects.length; i++) {
