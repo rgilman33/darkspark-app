@@ -780,5 +780,6 @@ export function draw_nn() {
     all_tweens.forEach(t => t.start())
     setTimeout(() => {
         globals.is_tweening = false
+        utils.update_labels() // also updating labels AFTER tween is done
     }, TWEEN_MS);
 }

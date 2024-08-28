@@ -91,7 +91,7 @@ export default function recompute_layout() {
                     specs.width += MIN_SPATIAL
                     specs.height += MIN_SPATIAL
 
-                    let MAX_SPATIAL = 3
+                    let MAX_SPATIAL = 5 //3
                     specs.width = Math.min(specs.width, MAX_SPATIAL) // TODO have to indicate overflow here also 
                     specs.height = Math.min(specs.height, MAX_SPATIAL)
 
@@ -139,7 +139,8 @@ export default function recompute_layout() {
                     let s0 = prev_actvol.activation_volume_specs
                     let s1 = this_actvol.activation_volume_specs
                     let no_dims_change = (s0.width==s1.width) && (s0.height==s1.height) && (s0.depth==s1.depth)
-                    if (no_dims_change) {
+                    let pretty_close = (this_actvol.x_relative_original - prev_actvol.x_relative_original) < 6
+                    if (no_dims_change && !prev_actvol.is_global_input && pretty_close) {
                         prev_actvol.is_activation_volume = false
                     }
                 }
@@ -149,7 +150,7 @@ export default function recompute_layout() {
         }
 
     }
-    //prune_children_activation_volumes(nn)
+    prune_children_activation_volumes(nn)
     ///////////////////////////////////////////////////
 
     
@@ -199,6 +200,12 @@ export default function recompute_layout() {
         let input_ops_global = input_ops.filter(o => o.is_global_input)
         let input_ops_standard = input_ops.filter(o => !o.is_global_input)
 
+        function get_act_vol_spans(specs){
+            let y_span_half = specs.height*.5 + specs.width*.15
+            let x_span = specs.depth + specs.width*.15
+            return {x_span, y_span_half}
+        }
+
         ///////////////////
         // old version
         function nudge_forward_dns(op_whose_dns_to_nudge) {
@@ -208,7 +215,8 @@ export default function recompute_layout() {
             dns.forEach(dn => {
                 let x_threshold = op_whose_dns_to_nudge.x_relative + op_whose_dns_to_nudge.w
                 if (dn.is_activation_volume) {
-                    x_threshold += Math.round(dn.activation_volume_specs.depth) 
+                    let actvol_x_span = get_act_vol_spans(dn.activation_volume_specs).x_span
+                    x_threshold += Math.round(actvol_x_span) 
                     // occ uses array, so int for ix. Can undo the round when occ is more flexible TODO NOTE NOTE
                 }
                 if (dn.x_relative <= x_threshold) {
@@ -324,7 +332,7 @@ export default function recompute_layout() {
         ////////////////////////////////////////////////
         // Relative y
 
-        // NOTE TODO ensure these all use ints, for occ grid
+        // NOTE ensure these all use ints, for occ grid
 
         // compile rows lookup
         let rows = {}
@@ -383,6 +391,19 @@ export default function recompute_layout() {
                 n.n_peer_row_nodes = row.nodes.length
             })
             row.nodes.forEach(n=>n.row=row)
+
+            // 
+            let row_actvol_hheights = row.nodes.filter(n => n.is_activation_volume).map(n => n.activation_volume_specs.height*.6)
+            if (row_actvol_hheights.length>0){
+                row.actvol_hheight = Math.max(...row_actvol_hheights)
+            } else {
+                row.actvol_hheight = 0
+            }
+            row.nodes.forEach(n=>n.row_actvol_hheight=row.actvol_hheight)
+            
+            let base_pad = row.is_only_tensors ? .2 : .6
+            row.pad = base_pad //Math.max(row.actvol_hheight, base_pad)
+
             
 
         }
@@ -414,19 +435,19 @@ export default function recompute_layout() {
             
             //////////////////
             // block occupancy for row line
-            let above_pad = .8 //.5 //row.is_only_tensors ? .2 : .6 //1 // TODO move row padding to row creation
-            // this works when have expansions, but if nodes are starting out already higher than the expansion, we're not 
-            // catching it. Can change to not expand in Python, or adjust our row setting below to also allow them to go down
-            // if overlap is negative
 
-            block_occupancy(row.starts_at_x, row.ends_at_x, row.y_relative+above_pad)
+            block_occupancy(row.starts_at_x, row.ends_at_x, row.y_relative+row.pad)
+            let ACTVOL_HHEIGHT_MODIFIER = .7
 
             // Block occ for all expanded ops in the row
             row.nodes.forEach(o => {
                 if (!o.collapsed) { // expanded box within the row
-                    let top = o.y_relative + o.h + .8 //.5 //.6
+                    let top = o.y_relative + o.h + .6 //.5 //.6 NOTE NOTE this hardcoding
                     let right = o.x_relative + o.w
                     block_occupancy(o.x_relative, right, top)
+                } else if (o.is_activation_volume) {
+                    let actvol_spans = get_act_vol_spans(o.activation_volume_specs)
+                    block_occupancy(Math.floor(o.x_relative-actvol_spans.x_span), o.x_relative, actvol_spans.y_span_half)
                 }
             })
 
@@ -460,7 +481,7 @@ export default function recompute_layout() {
                     })
                 }
             })
-            row.nodes.forEach(o => { // TODO if we like this, refactor into one fn, only diff is get_uns and .is_output
+            row.nodes.forEach(o => { // TODO if we like this, refactor into one fn, only diff is get_uns and .is_output. otherwise identical to above
                 if (!o.collapsed) { // expanded box within the row. bring its input nodes up to its frame of reference
                     let c_sub_inputs = o.children.filter(cc => cc.is_output)
                     c_sub_inputs.forEach(cc => { // y_relative_grandparent is the subops y_relative value in the current frame of reference
@@ -489,9 +510,19 @@ export default function recompute_layout() {
 
             // move remaining rows up to evade occupancy
             row_queue.forEach(row => {
-                let below_pad = .8 //.5 //row.is_only_tensors ? .2 : .6
                 let occ = Math.max(...occupancy.slice(row.starts_at_x, row.ends_at_x+1))
-                let new_row_y =  occ+below_pad
+                let new_row_y =  occ+row.pad
+                
+                let actvols = row.nodes.filter(n=>n.is_activation_volume)
+                actvols.forEach(o => {
+
+                    let actvol_spans = get_act_vol_spans(o.activation_volume_specs)
+                    let s = Math.floor(o.x_relative-actvol_spans.x_span)
+
+                    let actvol_occ = Math.max(...occupancy.slice(s, o.x_relative+1))
+                    
+                    new_row_y = Math.max(new_row_y, actvol_occ+actvol_spans.y_span_half)
+                })
 
                 if (row.has_been_moved_up_w_expanding_box && row.y_relative>new_row_y) { 
                     // if moved up w expanding box and is higher than new value, let it stay. 

@@ -476,7 +476,6 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
     utils.mark_attr(op, "originating_position", {x:op.x, y:0, z:op.y})
     recompute_layout()
     draw_nn()
-    utils.update_labels()
     utils.mark_attr(op, "originating_position", undefined)
   }
 
@@ -487,7 +486,6 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
 
     recompute_layout() // recompute datastructure
     draw_nn()
-    utils.update_labels()
 
     to_expand_container.forEach(o => utils.mark_attr(o, "originating_position", undefined))
   }
@@ -505,7 +503,6 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
 
       utils.remove_all_meshes(op, {x:op.x, y:0, z:op.y}) // remove the physical meshes
       draw_nn()
-      utils.update_labels()
       utils.mark_attr(op, "terminating_position", undefined)
       delete op.is_in_process_of_collapsing
   }
@@ -524,7 +521,6 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
         utils.remove_all_meshes(o, {x:o.x, y:0, z:o.y}) // remove the physical meshes
       })
       draw_nn()
-      utils.update_labels()
 
       // cleanup
       ops_to_collapse.forEach(o => {
@@ -657,7 +653,7 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
                 camera.zoom = default_zoom
                 camera.updateProjectionMatrix()
 
-                // draw labels. they'll keep themselves updated after this using listeners, but need to do first draw 
+                // draw labels
                 utils.update_labels()
 
                 //////////////////

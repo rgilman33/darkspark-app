@@ -532,7 +532,7 @@ export function nice_name(op) {
 export function populate_labels_pool() {
     globals.labels_pool = []
     globals.all_labels = []
-    let N_LABELS_IN_POOL = 150
+    let N_LABELS_IN_POOL = 400
     for (let i=0; i<N_LABELS_IN_POOL; i++) {
     
         const div = document.createElement( 'div' );
@@ -573,12 +573,23 @@ function assign_label_to_op(op) {
     let label = globals.labels_pool.pop()
     if (label) {
         // label.position.set(op.x, 0, op.y)
-        label.position.set(0, 0, 0)
+        label.position.set(0, 0, 0) 
+        // note there are two ways to set position: center.set works in screen space, position.set works in scene space. We first align how
+        // we want in px space, then set in world space so stays nice through zooms. Eg for nodes align to bottom of text, then place that bottom
+        // of text directly above the sphere in scene coords
         op.mesh.add(label)
+
+        label.center.set( .5, 0); // centered horizontally w node. Screen coords
 
         ////
         if (["mod_out", "fn_out"].includes(op.node_type) || op.is_global_input){
-            label.center.set( .5, -.1 ); // below node, centered horizontally
+            label.element.style["font-size"] = "11px"
+            if (op.is_activation_volume) {
+                label.position.x -= (op.activation_volume_specs.depth/2)
+                label.position.z += (op.activation_volume_specs.height*.6)
+            } else {
+                label.position.z += .05
+            }
             if ("dim_types" in op) {
                 let spans = label.element.children
 
@@ -605,7 +616,9 @@ function assign_label_to_op(op) {
                 spans[0].style.display = 'inline'
             }
         } else if (["function", "module"].includes(op.node_type)) {
-            label.center.set( .5, 1.1 ); // above node, centered horizontally
+            label.element.style["font-size"] = "12px"
+            label.center.set( .5, 1); // centered horizontally w node, aligns w bottom of text to node center vertically
+            label.position.z -= .08 // scene coords
             let spans = label.element.children
             let first_span = spans[0]
             first_span.style.display = 'inline'
@@ -616,13 +629,13 @@ function assign_label_to_op(op) {
                     k = k.includes(",") ? k : "("+k+"x"+k+")"
                     k = k.replace(", ", "x")
                     spans[1].innerText = " "+k
-                    spans[1].style.color = 'grey'
+                    // spans[1].style.color = 'grey'
                     spans[1].style.display = 'inline'
                 }
                 if ("groups" in op.fn_metadata) {
                     if (parseInt(op.fn_metadata.groups)>1) {
                         spans[2].innerText = " groups: "+op.fn_metadata.groups
-                        spans[2].style.color = 'grey'
+                        // spans[2].style.color = 'grey'
                         spans[2].style.display = 'inline'
                     }
                 }
@@ -631,7 +644,7 @@ function assign_label_to_op(op) {
             if ("action_along_dim_type" in op) {
                 spans[3].innerText = (" ("+op.action_along_dim_type+")")
                 spans[3].style.display = 'inline'
-                spans[3].style.color = 'grey'
+                // spans[3].style.color = 'grey'
             }
         } 
         ///////
@@ -669,7 +682,7 @@ function remove_label_from_op_and_return_to_pool(op) {
 
 function update_nodes_labels() {
     let [h_width, h_height, cx, cz] = get_main_window_position()
-    let bh = 3; let bv = 1.5 // scaling to give buffer to count as 'on screen' to put labels in place before they scroll into view.
+    let bh = 2; let bv = 1.5 // scaling to give buffer to count as 'on screen' to put labels in place before they scroll into view.
     let screen_left = cx-h_width*bh; let screen_right = cx+h_width*bh; let screen_top = cz+h_height*bv; let screen_bottom = cz-h_height*bv
     globals.ops_of_visible_nodes.forEach(op => {
       let is_onscreen = (op.x > screen_left) && (op.x < screen_right) && (op.y>screen_bottom) && (op.y<screen_top)
@@ -694,25 +707,57 @@ function update_nodes_labels() {
     hide_overlapping_labels()
   }
 
-function hide_overlapping_labels() {
 
-    let active_labels = globals.all_labels.filter(l => l.current_op)
+function hide_overlapping_labels() {
+    /*
+    this part is not streamlined. We're using two approaches. Nodes use labels pool. Planes get their own labels which the keep all the time.
+    planes labels use the overlap detection below, which works for them reliably now. Nodes use the div.getBoundingBox approach, also below. 
+    We're first checking for overlap within planes labels using their apparatus, then using the planes labels to hide overlapping nodes labels,
+    then comparing nodes labels w eachother. Ideally we'd have one labels pool, sort it by priority, cycle through from each side always taking the
+    higher priority one. Not for perfs sake, but for sanity as we're now maintaining two ways of getting labels, and two ways of detecting overlap.
+    */
+    let nodes_labels = globals.all_labels.filter(l => l.current_op)
+
+    let planes_labels = globals.ops_of_visible_planes.filter(op => {
+        let show_plane_label = (globals.camera.zoom > 60) || 
+            (globals.camera.zoom > 30 && op.n_ops > 6) || 
+            (globals.camera.zoom > 20 && op.n_ops > 12) || 
+            (globals.camera.zoom > 7 && op.n_ops > 24)
+        return show_plane_label
+    }).map(op => op.expanded_plane_label)
+
+    let active_labels = nodes_labels//.concat(planes_labels)
     
     // Reset all labels to be visible initially
-    active_labels.forEach(l => l.visible = true)
+    active_labels.forEach(l => {
+        l.element.style.visibility = 'visible'
+        l.is_hidden = false
+    })
+
+    // Check for overlap w plane labels and node labels
+    for (let i = 0; i < nodes_labels.length; i++) {
+        for (let j = 0; j < planes_labels.length; j++) {
+            let l1 = nodes_labels[i]
+            let l2 = planes_labels[j]
+            if (l2.visible) { // if plane is visible
+                if (doDivsIntersect(l1.element, l2.element)) { // if overlap, hide node label
+                    l1.element.style.visibility = 'hidden'
+                    l1.is_hidden = true
+                } 
+            }
+        }
+    }
     
     // Iterate through the labelRects to check for overlaps
     for (let i = 0; i < active_labels.length; i++) {
         for (let j = i + 1; j < active_labels.length; j++) {
             let l1 = active_labels[i]
             let l2 = active_labels[j]
-            if ((l1.current_op.node_id=="00000040") && (l2.current_op.node_id=="00000044")) {
-                // console.log(l1.element.getBoundingClientRect(), l2.element.getBoundingClientRect())
-                console.log(doDivsIntersect(l1.element, l2.element))
-            }
-            if (l1.visible && l2.visible) { // if both are still visible
+            if (!l1.is_hidden && !l2.is_hidden) { // if both are still visible
                 if (doDivsIntersect(l1.element, l2.element)) { // if overlap, hide one
                     // l1.visible = false
+                    l1.element.style.visibility = 'hidden'
+                    l1.is_hidden = true
                 } 
             }
         }
@@ -820,8 +865,9 @@ function update_planes_labels() {
 }
 
 export function update_labels() {
-    update_nodes_labels()
     update_planes_labels()
+
+    update_nodes_labels()
 }
 
 ///////////////////////////////
