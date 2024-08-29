@@ -633,6 +633,9 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
                 // init at collapsed depth
                 utils.mark_all_mods_past_depth_as_collapsed(default_depth) // returns, but don't need it now bc no transitions
 
+                // init w reshape ops collapsed
+                utils.mark_all_mods_of_family_as_collapsed(nn, "reshape*", []) // returns, but don't need it
+
                 recompute_layout()
                 draw_nn()
 
@@ -727,6 +730,16 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
     collapse_op(op)
     handleClose()
   }
+  //
+  const contextMenuExpandAllReshapeModules = () => {
+    expand_all_mods_of_class("reshape*")
+    handleClose()
+  }
+  const contextMenuCollapseAllReshapeModules = () => {
+    collapse_all_of_mod_class("reshape*")
+    handleClose()
+  }
+  //
   const contextMenuDebugModeOn = () => {
     globals.DEBUG = true
 
@@ -791,6 +804,8 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
         <MenuItem onClick={contextMenuDebugModeOff}>Turn off debug mode</MenuItem>,
         <MenuItem onClick={contextMenuShowActivationVolumesOn}>Show activation volumes</MenuItem>,
         <MenuItem onClick={contextMenuShowActivationVolumesOff}>Hide activation volumes</MenuItem>,
+        <MenuItem onClick={contextMenuExpandAllReshapeModules}>Expand all reshape ops</MenuItem>,
+        <MenuItem onClick={contextMenuCollapseAllReshapeModules}>Collapse all reshape ops</MenuItem>,
     ]
     }
 

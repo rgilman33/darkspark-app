@@ -1,4 +1,5 @@
 import './App.css';
+import '@fortawesome/fontawesome-free/css/all.min.css';
 import { app, analytics } from './firebase';
 import React, { useState, useEffect } from 'react';
 import Sidebar from './sidebar';

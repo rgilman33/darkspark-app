@@ -26,6 +26,7 @@ export let globals = {
     DEBUG:true,
     SHOW_ACTIVATION_VOLUMES:true,
     is_tweening:false,
+    COLLAPSE_ALL_RESHAPE_MODULES:true,
 }
 export const MINIMAP_OBJECTS_LAYER = 3
 export const ACTVOL_OBJECTS_LAYER = 4
@@ -607,6 +608,7 @@ function assign_label_to_op(op) {
                     span.innerText = s; 
                 })
                 let last_span = spans[spans_ix]
+
                 last_span.innerText = ")"
                 last_span.style.display = "inline"
 
@@ -622,30 +624,39 @@ function assign_label_to_op(op) {
             let spans = label.element.children
             let first_span = spans[0]
             first_span.style.display = 'inline'
-            first_span.innerText = op.name.slice(0, 10)
-            if ("fn_metadata" in op) {
-                if ("kernel_size" in op.fn_metadata) {
-                    let k = op.fn_metadata.kernel_size
-                    k = k.includes(",") ? k : "("+k+"x"+k+")"
-                    k = k.replace(", ", "x")
-                    spans[1].innerText = " "+k
-                    // spans[1].style.color = 'grey'
-                    spans[1].style.display = 'inline'
-                }
-                if ("groups" in op.fn_metadata) {
-                    if (parseInt(op.fn_metadata.groups)>1) {
-                        spans[2].innerText = " groups: "+op.fn_metadata.groups
-                        // spans[2].style.color = 'grey'
-                        spans[2].style.display = 'inline'
+
+            if (op.name=="reshape*") { // special reshape group
+                const icon = document.createElement('i');
+                icon.className = "fa-solid fa-shuffle"
+                first_span.appendChild(icon) // TODO we need to be deleting this now also
+            } else { // standard node
+
+                first_span.innerText = op.name.slice(0, 10)
+                if ("fn_metadata" in op) {
+                    if ("kernel_size" in op.fn_metadata) {
+                        let k = op.fn_metadata.kernel_size
+                        k = k.includes(",") ? k : "("+k+"x"+k+")"
+                        k = k.replace(", ", "x")
+                        spans[1].innerText = " "+k
+                        // spans[1].style.color = 'grey'
+                        spans[1].style.display = 'inline'
+                    }
+                    if ("groups" in op.fn_metadata) {
+                        if (parseInt(op.fn_metadata.groups)>1) {
+                            spans[2].innerText = " groups: "+op.fn_metadata.groups
+                            // spans[2].style.color = 'grey'
+                            spans[2].style.display = 'inline'
+                        }
                     }
                 }
+                
+                if ("action_along_dim_type" in op) {
+                    spans[3].innerText = (" ("+op.action_along_dim_type+")")
+                    spans[3].style.display = 'inline'
+                    // spans[3].style.color = 'grey'
+                }
             }
-            
-            if ("action_along_dim_type" in op) {
-                spans[3].innerText = (" ("+op.action_along_dim_type+")")
-                spans[3].style.display = 'inline'
-                // spans[3].style.color = 'grey'
-            }
+
         } 
         ///////
         
@@ -938,6 +949,7 @@ export function get_upstream_nodes_from_group(base_op, ops) {
     return ops.filter(o => base_op.uns.includes(o.node_id))
 }
 
+// TODO consolidate these
 export function mark_all_mods_of_family_as_collapsed(op, family, to_remove_container){
     if (op.node_type=="module" && op.name==family && !op.collapsed) {
       op.collapsed = true
@@ -952,6 +964,7 @@ export function mark_all_mods_of_family_as_expanded(op, family, to_expand_contai
     }
     op.children.forEach(c => mark_all_mods_of_family_as_expanded(c, family, to_expand_container))
 }
+
 
 export function mark_all_mods_past_depth_as_collapsed(level){
     let to_collapse_container = []
