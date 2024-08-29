@@ -763,7 +763,7 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
         "row_counter", "draw_order_row",
         "mod_outputs", "input_group_ix", "input_group_sub_ix",
         'n_ops', 'depth', 'input_shapes', 'output_shapes', 'is_output_global', 
-        "sparkflow", "params", "incremental_memory_usage", "max_memory_allocated", "latency", "n_params", "mod_inputs"]
+        "sparkflow", "params", "incremental_memory_usage", "max_memory_allocated", "latency", "n_params", "mod_inputs", "should_modularize"]
 
   const render_menu_items = () => {
     if (contextMenu === null) return [<MenuItem></MenuItem>]

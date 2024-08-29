@@ -23,7 +23,7 @@ export let globals = {
     camera: undefined,
     nn: undefined,
     mount: undefined,
-    DEBUG:false,
+    DEBUG:true,
     SHOW_ACTIVATION_VOLUMES:true,
     is_tweening:false,
 }
