@@ -15,6 +15,7 @@ import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry';
 export let globals = {
     max_depth: undefined,
     max_depth_visible: undefined,
+    max_n_params_visible:undefined,
     curves_lookup: {},
     nodes_lookup: {},
 
@@ -23,7 +24,7 @@ export let globals = {
     camera: undefined,
     nn: undefined,
     mount: undefined,
-    DEBUG:true,
+    DEBUG:false,
     SHOW_ACTIVATION_VOLUMES:true,
     is_tweening:false,
     COLLAPSE_ALL_RESHAPE_MODULES:true,
@@ -257,9 +258,12 @@ export function get_plane_color(op) {
 	const color = new THREE.Color(r, g, b)
 	return color
 }
+let MIN_SPHERE_SIZE = .06
 
-export function scale_sphere(sphere, n_ops) {
-	let scalar = interp(n_ops, [0,1,2,100], [.12, .12, .14, MAX_SPHERE_SIZE])
+export function scale_sphere(sphere, op) {
+    let v = ("n_params" in op) ? op.n_params : 0
+    v += 1 // don't want sqrt of zero
+	let scalar = interp(Math.sqrt(v), [0, Math.sqrt(globals.max_n_params_visible)], [MIN_SPHERE_SIZE, MAX_SPHERE_SIZE])
 	sphere.scale.x *= scalar
 	sphere.scale.y *= scalar
 	sphere.scale.z *= scalar
@@ -361,7 +365,7 @@ export function get_sphere_group(n){
     sphere.rotation.x = -Math.PI / 2; // Rotate 90 degrees to make it face upward
     sphere.position.y += .1 // shift towards camera so doesn't overlap w edges
 
-    scale_sphere(sphere, n.n_ops)
+    scale_sphere(sphere, n)
 
     let group = new THREE.Group();
     group.add(sphere)
@@ -546,6 +550,7 @@ export function populate_labels_pool() {
         }
     
         const label = new CSS2DObject( div );
+        // label.frustumCulled = false
 
         // label.element.style.display = "none" // this wasn't doing it, have to set label.visible
         label.visible = false
@@ -572,6 +577,7 @@ let color_lookup = {
 // grab label from pool, fill it out w op's info and position it at op's location
 function assign_label_to_op(op) {
     let label = globals.labels_pool.pop()
+
     if (label) {
         // label.position.set(op.x, 0, op.y)
         label.position.set(0, 0, 0) 
@@ -628,6 +634,7 @@ function assign_label_to_op(op) {
             if (op.name=="reshape*") { // special reshape group
                 const icon = document.createElement('i');
                 icon.className = "fa-solid fa-shuffle"
+                icon.style.color = "grey"
                 first_span.appendChild(icon) // TODO we need to be deleting this now also
             } else { // standard node
 
@@ -661,6 +668,7 @@ function assign_label_to_op(op) {
         ///////
         
         label.visible = true
+        label.element.style.visibility = 'visible'
         op.active_node_label = label
         label.current_op = op
     } else {
@@ -675,7 +683,8 @@ function remove_label_from_op_and_return_to_pool(op) {
     
         // label.element.style.display = 'none' // doesn't work, that wasted an hour
         label.visible = false // i think this overrides manually setting it. Have to do it this way. 
-    
+        label.element.style.opacity = 1
+
         // set all spans as display none. Can use the display==none technique here, though not on the style of the base div element (that is overridden by label.visible)
         let spans = label.element.children
         for (let i=0; i<spans.length; i++) {
@@ -692,8 +701,9 @@ function remove_label_from_op_and_return_to_pool(op) {
 }
 
 function update_nodes_labels() {
+    console.log("update nodes labels")
     let [h_width, h_height, cx, cz] = get_main_window_position()
-    let bh = 2; let bv = 1.5 // scaling to give buffer to count as 'on screen' to put labels in place before they scroll into view.
+    let bh = 3; let bv = 1.5 // scaling to give buffer to count as 'on screen' to put labels in place before they scroll into view.
     let screen_left = cx-h_width*bh; let screen_right = cx+h_width*bh; let screen_top = cz+h_height*bv; let screen_bottom = cz-h_height*bv
     globals.ops_of_visible_nodes.forEach(op => {
       let is_onscreen = (op.x > screen_left) && (op.x < screen_right) && (op.y>screen_bottom) && (op.y<screen_top)
@@ -741,9 +751,20 @@ function hide_overlapping_labels() {
     
     // Reset all labels to be visible initially
     active_labels.forEach(l => {
-        l.element.style.visibility = 'visible'
+        // l.element.style.visibility = 'visible'
+        l.visible = true
         l.is_hidden = false
+        l.element.style.opacity = 1
     })
+    planes_labels.forEach(l => {
+        // l.element.style.visibility = 'visible'
+        // l.visible = true // can't do this, they were just marked for overlap TODO consolidate the flags here, just use is_hidden and opacity,
+        // don't use visible anymore
+        l.is_hidden = false
+        l.element.style.opacity = 1
+    })
+
+    let to_hide = []
 
     // Check for overlap w plane labels and node labels
     for (let i = 0; i < nodes_labels.length; i++) {
@@ -752,8 +773,9 @@ function hide_overlapping_labels() {
             let l2 = planes_labels[j]
             if (l2.visible) { // if plane is visible
                 if (doDivsIntersect(l1.element, l2.element)) { // if overlap, hide node label
-                    l1.element.style.visibility = 'hidden'
+                    // l1.element.style.visibility = 'hidden'
                     l1.is_hidden = true
+                    to_hide.push(l1)
                 } 
             }
         }
@@ -766,13 +788,18 @@ function hide_overlapping_labels() {
             let l2 = active_labels[j]
             if (!l1.is_hidden && !l2.is_hidden) { // if both are still visible
                 if (doDivsIntersect(l1.element, l2.element)) { // if overlap, hide one
-                    // l1.visible = false
-                    l1.element.style.visibility = 'hidden'
+                    // l1.element.style.visibility = 'hidden'
+                    to_hide.push(l1)
                     l1.is_hidden = true
                 } 
             }
         }
     }
+    to_hide.forEach(label => {
+        label.element.style.opacity = 0 //.3
+        // label.visible = false
+
+    })
 }
 
 function doDivsIntersect(div1, div2) {
@@ -792,10 +819,10 @@ function doDivsIntersect(div1, div2) {
 }
     
 // from chatgpt
-const getScreenCoordinates = (object, cam) => {
+const getScreenCoordinates = (object) => {
     const vector = new THREE.Vector3();
     object.getWorldPosition(vector);
-    vector.project(cam);
+    vector.project(globals.camera);
 
     const x = (vector.x * 0.5 + 0.5) * globals.mount.clientWidth;
     const y = (vector.y * -0.5 + 0.5) * globals.mount.clientHeight;
@@ -822,13 +849,6 @@ const checkOverlap = (rect1, rect2) => {
     );
 };
 
-function get_bb(label) {
-    const coords = getScreenCoordinates(label, globals.camera);
-    let bb = calculateBoundingBox(label, coords);
-    return bb
-}
-
-
 function update_planes_labels() { 
 
     // Only consider if within distance
@@ -851,10 +871,11 @@ function update_planes_labels() {
     consider_drawing.forEach(op => {
         // op.expanded_plane_label.element.style.display = 'block'; // doesn't work, have to set visible
         op.expanded_plane_label.visible = true;
+        op.expanded_plane_label.element.style.opacity = 1
     });
     
     const labelRects = consider_drawing.map(op => {
-        const coords = getScreenCoordinates(op.expanded_plane_label, globals.camera);
+        const coords = getScreenCoordinates(op.expanded_plane_label);
         let bb = calculateBoundingBox(op.expanded_plane_label, coords);
         bb.name = op.name
         return bb

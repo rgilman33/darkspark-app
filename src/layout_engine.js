@@ -692,7 +692,27 @@ export default function recompute_layout() {
     set_visible_max_depth(nn)
     console.log("max depth visible", globals.max_depth_visible)
 
+    //////////////////////////////
+    // visible max depth
+    let n_params = []
+    function set_visible_max_n_params(op) {
+        if (op.collapsed) {
+            if (op.n_params != undefined) {
+                n_params.push(op.n_params)
+            }
+        } else {
+            op.children.forEach(c => set_visible_max_n_params(c))
+        }
+    }
+    set_visible_max_n_params(nn)
 
+    n_params.sort((a,b)=>a-b)
+    let n_params_at_upper_percentile = n_params[parseInt(n_params.length*.95)]
+    globals.max_n_params_visible = n_params_at_upper_percentile //Math.max(...n_params)
+
+    console.log("max n_params value visible", globals.max_n_params_visible) 
+    // not actually max, capping at 95th percentile so very large outliers don't destroy scale
+    // TODO need to ensure scales are now always updating during all transitions
 
     console.timeEnd("compute layout")
 }

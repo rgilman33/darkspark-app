@@ -312,6 +312,24 @@ export function draw_nn() {
     nn.children.sort((a,b) => {return a.draw_order - b.draw_order})
     draw_op(nn)
 
+    ////////////////// Simple by op type
+    let tensor_ops = ["reshape*", "cat", "__getitem__"]
+
+    function op_type_to_color(op) {
+        if (op.is_tensor_node || tensor_ops.includes(op.name)) {
+            return new THREE.Color('grey')
+        } else {
+            return utils.node_color
+        } 
+    }
+    globals.ops_of_visible_nodes.forEach(op => {
+        if ("mesh" in op) {
+            let node = op.mesh.children[0]
+            node.material.color = op_type_to_color(op)
+        }
+    })
+
+
     // ////////////////// color by op type
     // let op_color_lookup = {}
     // let feature_detector_ops = ["conv2d", "linear", "scaled_dot_product_attention", "embedding"]
@@ -774,12 +792,17 @@ export function draw_nn() {
     console.log(`${n_new_edges} new edges created, ${to_remove_edges.length} edges removed, ${n_curves_that_didnt_move} lines didn't move, ${n_curves_moved} moved, ${n_curves_changed_type} changed type`)    
     console.log(`${n_collapsing_edges} edges collapsed, ${n_just_removed_edges} just removed directly`)
     console.timeEnd("draw edges, actually draw them")
-
-    // start all tweens at the same time for synchronicity
+    
     globals.is_tweening = true // used so minimap knows to update itself
+    utils.update_labels() 
+    //  have to update here, not just after, otherwise during expansion get strangeness w the nodes where they don't update until i manually
+    // trigger update. Very strange, not actually understood, doesn't seem like the underlying dom elements were up to date. Calling here first
+    // and then again after does the trick
+
     all_tweens.forEach(t => t.start())
     setTimeout(() => {
         globals.is_tweening = false
-        utils.update_labels() // also updating labels AFTER tween is done
+        utils.update_labels() // also updating labels AFTER tween is done. Have to also call this here or doesn't show up until next triggering.
     }, TWEEN_MS);
+    
 }

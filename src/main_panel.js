@@ -118,7 +118,16 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
     window.addEventListener( 'dblclick', onPointerDown );
     // window.addEventListener( 'click', singleClick );
     window.addEventListener('mousemove', onMouseMove, false);
-
+    
+    // Add an event listener for the 'keydown' event
+    window.addEventListener('keydown', function(event) {
+      // Check if the 'Ctrl' key is pressed and the 'D' key is pressed
+      if (event.ctrlKey && event.key === 'd') {
+          event.preventDefault(); // Optional: Prevent the default action (e.g., bookmark shortcut)
+          console.log('Ctrl+D was pressed!');
+          utils.update_labels()
+      }
+    });
     // Label renderer
     labelRenderer = new CSS2DRenderer();
     labelRenderer.setSize( mount.clientWidth, mount.clientHeight );
@@ -336,6 +345,7 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
   }
 
   function onMouseMove(event) {
+
     raycaster.layers.set(CLICKABLE_LAYER)
     const sidebarWidth = 0 //document.querySelector('.sidebar').offsetWidth;
     // Update the pointer position
@@ -371,8 +381,6 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
                 setTooltipObject(INTERSECTED.actual_node);
                 setTooltipPosition({ left: screen_coords.clientX, top: screen_coords.clientY });
                 setHoveredObject(INTERSECTED.actual_node);
-
-
             }
         } else if ("expanded_op" in intersects[ 0 ].object) {
             setTooltipObject(null);
