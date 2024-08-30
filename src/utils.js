@@ -24,8 +24,8 @@ export let globals = {
     camera: undefined,
     nn: undefined,
     mount: undefined,
-    DEBUG:false,
-    SHOW_ACTIVATION_VOLUMES:true,
+    DEBUG:true,
+    SHOW_ACTIVATION_VOLUMES:false,
     is_tweening:false,
     COLLAPSE_ALL_RESHAPE_MODULES:true,
 }
@@ -63,8 +63,10 @@ export const white_color = new THREE.Color(1,1,1);
 export const plane_color_darker = new THREE.Color(...[228, 229, 230].map(d => d/255));
 export const plane_outline_color = new THREE.Color(...[58, 124, 165].map(d=>d/255))
 
-// doesn't seem to be much perf effect here if any
+// doesn't seem to be much perf effect here if any. not true. noticeable on laptop. Big diff noticed when use flat lines rather 
+// than bezier
 export const CURVE_N_PTS = 20 //50
+
 
 export const MAX_SPHERE_SIZE = .32
 
@@ -168,6 +170,8 @@ export function get_edge_pts(n0, n1) {
 
     if (same_y) { // flat
         pts = get_pts_for_flat_line(pt1, pt2)
+        // pts = get_curve_pts(pt1, pt2, CURVE_N_PTS)
+
     } else { // has vertical part
         // let min_x_dist = Math.round(Math.abs(n1.y_relative - n0.y_relative) / 2) // same as in layout_engine. should consolidate
         // let elbow_x_dist = Math.max(min_x_dist, 1)

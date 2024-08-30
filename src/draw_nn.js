@@ -703,12 +703,26 @@ export function draw_nn() {
             let oldPts = line_obj.userData.pts
             
             if (newPts.length > oldPts.length) { 
+
                 // Old line was flat and new one is curved. Reinit old line to have more points, then transition those.
                 oldPts = utils.get_curve_pts({x:prev_n0_x, y:0, z:prev_n0_y}, {x:prev_n1_x, y:0, z:prev_n1_y}, CURVE_N_PTS)
                 
+                console.log("old line was flat, new one is curved", edge_id)
+
+                // line_obj.frustumCulled = false
+                
                 // line_obj.geometry.setFromPoints(oldPts)
                 line_obj.geometry.setPositions(utils.pts_to_positions(oldPts))
+
+                line_obj.computeLineDistances();
                 
+                // Notify Three.js that the position attribute has changed
+                line_obj.geometry.attributes.position.needsUpdate = true;
+                // Update the draw range
+                line_obj.geometry.setDrawRange(0, oldPts.length);
+                line_obj.geometry.computeBoundingBox();
+                line_obj.geometry.computeBoundingSphere();
+
                 n_curves_changed_type += 1
             } else if (newPts.length < oldPts.length) {
                 // New line is flat and prev was curved. Keep the extra pts, transition them to line. Will have extra pts remaining.
