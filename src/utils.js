@@ -24,7 +24,7 @@ export let globals = {
     camera: undefined,
     nn: undefined,
     mount: undefined,
-    DEBUG:true,
+    DEBUG:false,
     SHOW_ACTIVATION_VOLUMES:false,
     is_tweening:false,
     COLLAPSE_ALL_RESHAPE_MODULES:true,
@@ -140,6 +140,8 @@ export function get_line_from_pts(pts, linewidth, color) {
     const lineGeometry = new LineGeometry();
     lineGeometry.setPositions(positions);
 
+    color = globals.DEBUG ? (new THREE.Color(pts.length===2 ? "red" : "blue")) : color
+
     // Create the LineMaterial with specified color and linewidth
     const material = new LineMaterial({
         color: color,
@@ -160,22 +162,51 @@ export function get_line_from_pts(pts, linewidth, color) {
 
 // NOTE line2 doesn't flicker bc of frustum culling, but line does, only after tweening but not on initial create. 
 
+/*
+devlog aug 30. bugs in transitions w line2 after expansion / collapse. Everything worked w Line, but Line2 a bit buggy.
+Changed to use same method of creating new line in place of old one rather than reuse line obj itself, this matches
+what we're doing on expansion. Note the weird thing is we need to shift y by at least something for it to work! otherwise
+get a bug sometimes where it's not visible! sd1.4, the block after the mid block, expand first resnet, then expand the mid block
+and the line going into resnet disappears! Is the small y shift triggering something that's needed? some difference btwn old and new?
+aye. Also note we're still confused about when lines are getting more nodes added to them? need to be more clear on this. My brain hurts,
+am tired, and this is a complex part of the code. Want this to be cleaner. Need to have good perf, no more pts than needed (i think),
+but also need simplicity and cleanliness in our code. It currently seems to work, but i don't like this confusion and complexity
+*/
 
 export function get_edge_pts(n0, n1) {
-    let same_y = globals.DEBUG ? n0.y_unshifted==n1.y_unshifted : n0.y==n1.y 
+    // let same_y = globals.DEBUG ? n0.y_unshifted==n1.y_unshifted : n0.y==n1.y 
+    let same_y = n0.y_unshifted===n1.y_unshifted
+    let same_module = n0.parent_op === n1.parent_op
+    let same_row = same_module && (n0.draw_order_row===n1.draw_order_row)
+    let neither_is_module = n0.node_type!=="module" && n1.node_type!=="module" 
+    // this will get turned into multipt curve on expansion or collapse
+
+    // cam refactor around needing this. It's when edges going into collapse module, 
+    // the one that connects at base level should have two pts but we automatically tell all to be curve
+    // and yet we have issue where even when same row
+    // eff. with this, we're doing way too many curved edges TODO need to get around this
     let x_dist = n1.x - n0.x
     let pt1 = {x:n0.x, y:0, z:n0.y} // n0
     let pt2 = {x:n1.x, y:0, z:n1.y} // n1
     let pts
 
     if (same_y) { // flat
-        pts = get_pts_for_flat_line(pt1, pt2)
-        // pts = get_curve_pts(pt1, pt2, CURVE_N_PTS)
+        // lines should get the number of pts they'll ever need. If possibility of shifting to curved line, init now w enough pts.
+        // if guaranteed to always be same y, can suffice w two pts. This is for perf, many of our lines will always be straight, and 
+        // on laptop this makes difference. This saves complexity later bc don't have to update n_pts in the curve ever, which we were doing before
+        // and works w Line but not easily w Line2, still not understood why, but this is conceptually fine, and simpler
+        // if (same_row && neither_is_module) { // nodes in the same row should never be at different y position, regardless of any transition
+        if (same_row) { // nodes in the same row should never be at different y position, regardless of any transition
+            pts = get_pts_for_flat_line(pt1, pt2)
+        } else { // this line is flat now but may change when layout changes. Init to have enough pts for transition wout having to update n_pts
+            pts = get_curve_pts(pt1, pt2, CURVE_N_PTS)  
+        }
 
     } else { // has vertical part
         // let min_x_dist = Math.round(Math.abs(n1.y_relative - n0.y_relative) / 2) // same as in layout_engine. should consolidate
         // let elbow_x_dist = Math.max(min_x_dist, 1)
         let elbow_x_dist = 1
+
         if (x_dist > 1) { // elbow. Compound curve
             // if ((n0.respath_dist == n1.respath_dist) || n0.is_last_in_line){ // normal elbow TODO this needs work. Mark it in layout_engine. 
                 if ( n0.is_last_in_line){ // normal elbow 

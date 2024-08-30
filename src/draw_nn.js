@@ -526,38 +526,68 @@ export function draw_nn() {
 
         } else if ((n0.terminating_position == undefined) && (n1.terminating_position != undefined)) {
             // edges going into collapsing op
-            // Recycle by transfering line obj and creating new entry in curves_lookup. 
-            // Deleting old entry but keeping curve obj
+            // see below for notes
+
             let collapsed_op = n1.parent_op
 
+            let pts = utils.get_curve_pts({x:prev_n0_x, y:0, z:prev_n0_y}, {x:prev_n1_x, y:0, z:prev_n1_y}, CURVE_N_PTS)
+            
+            let [linewidth, color] = get_linewidth_and_color(n0,collapsed_op) 
+
+            let new_line_obj = utils.get_line_from_pts(pts, linewidth, color) 
+            new_line_obj.userData.pts = pts
+
             let new_edge_id = n0.node_id+collapsed_op.node_id
+
             curves_lookup[new_edge_id] = {}
-            curves_lookup[new_edge_id].edge_package = [line_obj, prev_n0_x, prev_n0_y, prev_n1_x, prev_n1_y] // same package as prev, just reassembling
+            curves_lookup[new_edge_id].edge_package = [new_line_obj, prev_n0_x, prev_n0_y, prev_n1_x, prev_n1_y]
             curves_lookup[new_edge_id].still_exists = true
-            curves_lookup[new_edge_id].nodes = [n0, collapsed_op]
-            // should get picked up below
+            curves_lookup[new_edge_id].nodes = [n0,collapsed_op]
 
-            n_recycled_edges += 1
+            scene.add(new_line_obj)
+            let e = [n0, collapsed_op, new_edge_id]
+            existing_edges.push(e)
 
+            // delete old curve object and curves_lookup entry
+            scene.remove(line_obj)
             delete curves_lookup[edge_id]
 
         } else if ((n0.terminating_position != undefined) && (n1.terminating_position == undefined)) {
             // edges leaving a collapsing op
-            // Recycle by transfering line obj and creating new entry in curves_lookup. 
-            // Deleting old entry but keeping curve obj
+
+            // init at prev location so can tween below via existing_curves pathway
+            // there will already be a curve at this exact location (leaving module) so it won't look abrubt
+            // we used to recycle the curve obj itself, but that acted strangly w Line2 when changing the number of pts
+            // that composed the curve. Now just doing the same as we do for edges going into an expanding op, we just
+            // mimic the effect by creating a new line in same location
+
+            // just getting curve_pts. This may be unnecessary but it's causing problem for us when we change curve n_pts and
+            // there's good chance this will need more pts
+
+            // can just use get_edge_pts now, as these will always be coerced into a curve anyways. 
+            let pts = utils.get_curve_pts({x:prev_n0_x, y:0, z:prev_n0_y}, {x:prev_n1_x, y:0, z:prev_n1_y}, CURVE_N_PTS)
+            
             let collapsed_op = n0.parent_op
+            let [linewidth, color] = get_linewidth_and_color(collapsed_op,n1) 
+
+            let new_line_obj = utils.get_line_from_pts(pts, linewidth, color) 
+            new_line_obj.userData.pts = pts
 
             let new_edge_id = collapsed_op.node_id+n1.node_id
+
             curves_lookup[new_edge_id] = {}
-            curves_lookup[new_edge_id].edge_package = [line_obj, prev_n0_x, prev_n0_y, prev_n1_x, prev_n1_y] // same package as prev, just reassembling
+            curves_lookup[new_edge_id].edge_package = [new_line_obj, prev_n0_x, prev_n0_y, prev_n1_x, prev_n1_y]
             curves_lookup[new_edge_id].still_exists = true
             curves_lookup[new_edge_id].nodes = [collapsed_op, n1]
-            // should get picked up below
 
+            scene.add(new_line_obj)
             n_recycled_edges += 1
+            let e = [collapsed_op, n1, new_edge_id]
+            existing_edges.push(e)
 
+            // delete old curve object and curves_lookup entry
+            scene.remove(line_obj)
             delete curves_lookup[edge_id]
-
         } 
         else { // just remove the edge directly. When will this even happen?
             n_just_removed_edges += 1
@@ -597,7 +627,7 @@ export function draw_nn() {
 
     function updateLineWidthAndColor(line_obj, newLineWidth, newColor) {
         line_obj.material.linewidth = newLineWidth;
-        line_obj.material.color = newColor;
+        if (!globals.DEBUG) line_obj.material.color = newColor;
         line_obj.material.needsUpdate = true; // Mark the material for update
     }
 
@@ -616,16 +646,9 @@ export function draw_nn() {
                 // there will already be a curve at this exact location (going into module) so it won't look abrubt
                 let p = n1.originating_position
                 let prev_n1 = {x:p.x, y:p.z, y_unshifted:p.z} // confusing attrs. mimicing a node bc that's what fn get_edge_pts expects
-                
-                // kindof a hack for now. The mesh has the old position. This doesn't matter when just expanding a single mod,
-                // but when multiple are expanding then both endpoints of the line will be updated, so we want to init BOTH to their prev
-                // positions. We've marked 'originating_position' on the nodes within the expanding module, but the other end of the line 
-                // we're grabbing the old position from the mesh itself. 
-                // let pp = n0.mesh.position // TODO this doesn't work when not debug mode, bc this mesh won't exist
-                let pp = n0.prev_pos // TODO this doesn't work when not debug mode, bc this mesh won't exist
+                let pp = n0.prev_pos 
                 let prev_n0 = {x:pp.x, y:pp.y, y_unshifted:pp.y}
 
-                // let pts = utils.get_edge_pts(n0, prev_n1) 
                 let pts = utils.get_edge_pts(prev_n0, prev_n1) 
                 let [linewidth, color] = get_linewidth_and_color(n0,n1) 
                 let line_obj = utils.get_line_from_pts(pts, linewidth, color)
@@ -633,7 +656,6 @@ export function draw_nn() {
                 line_obj.userData.pts = pts
     
                 curves_lookup[edge_id] = {}
-                // curves_lookup[edge_id].edge_package = [line_obj, n0.x, n0.y, prev_n1.x, prev_n1.y]
                 curves_lookup[edge_id].edge_package = [line_obj, prev_n0.x, prev_n0.y, prev_n1.x, prev_n1.y]
                 curves_lookup[edge_id].still_exists = true
                 curves_lookup[edge_id].nodes = [n0, n1]
@@ -649,13 +671,9 @@ export function draw_nn() {
                 // there will already be a curve at this exact location (leaving module) so it won't look abrubt
                 let p = n0.originating_position
                 let prev_n0 = {x:p.x, y:p.z, y_unshifted:p.z} // confusing attrs. mimicing a node bc that's what fn get_edge_pts expects
-                
-                // kindof hack to init line at old position of BOTH nodes in case of multiple expanding ops
-                // let pp = n1.mesh.position
                 let pp = n1.prev_pos
                 let prev_n1 = {x:pp.x, y:pp.y, y_unshifted:pp.y}
 
-                // let pts = utils.get_edge_pts(prev_n0, n1) 
                 let pts = utils.get_edge_pts(prev_n0, prev_n1) 
                 let [linewidth, color] = get_linewidth_and_color(n0,n1) 
                 let line_obj = utils.get_line_from_pts(pts, linewidth, color)
@@ -663,7 +681,6 @@ export function draw_nn() {
                 line_obj.userData.pts = pts
     
                 curves_lookup[edge_id] = {}
-                // curves_lookup[edge_id].edge_package = [line_obj, prev_n0.x, prev_n0.y, n1.x, n1.y]
                 curves_lookup[edge_id].edge_package = [line_obj, prev_n0.x, prev_n0.y, prev_n1.x, prev_n1.y]
                 curves_lookup[edge_id].still_exists = true
                 curves_lookup[edge_id].nodes = [n0, n1]
@@ -703,12 +720,17 @@ export function draw_nn() {
             let oldPts = line_obj.userData.pts
             
             if (newPts.length > oldPts.length) { 
+                // This was giving us problems w line2 when transitions of lines that had to get more pts.  
+                // THIS SHOULD NOT BE CALLED ANYMORE since we're setting any lines that might shift to have more
+                // pts to start from the beginning. Avoiding the 
+                // console.log("SHOULD NOT BE CALLED old line was flat, new one is curved", edge_id, oldPts.length, newPts.length)
 
                 // Old line was flat and new one is curved. Reinit old line to have more points, then transition those.
                 oldPts = utils.get_curve_pts({x:prev_n0_x, y:0, z:prev_n0_y}, {x:prev_n1_x, y:0, z:prev_n1_y}, CURVE_N_PTS)
                 
-                console.log("old line was flat, new one is curved", edge_id)
 
+
+                // none of these fixes below worked. Fine w normal line, but line2 not updating as should
                 // line_obj.frustumCulled = false
                 
                 // line_obj.geometry.setFromPoints(oldPts)
@@ -725,7 +747,12 @@ export function draw_nn() {
 
                 n_curves_changed_type += 1
             } else if (newPts.length < oldPts.length) {
+                // SHOULD NOT BE CALLED see note above
                 // New line is flat and prev was curved. Keep the extra pts, transition them to line. Will have extra pts remaining.
+                // console.log("SHOULD NOT BE CALLED old line was curved, this one is flat", edge_id, oldPts.length, newPts.length)
+                // actually these MAY be called bc of expansion/collapse ops in which we init to be line that is different than this,
+                // ie when collapse we init as multipt curve but the collapsed node is same row as dn node, so will be given two pts
+
                 newPts = utils.get_curve_pts({x:n0.x, y:0, z:n0.y}, {x:n1.x, y:0, z:n1.y}, CURVE_N_PTS)
                 n_curves_changed_type += 1
             }

@@ -14,7 +14,9 @@ export default function recompute_layout() {
     ///////////////////////////////////////////
     // cache prev positions
     function cache_prev_position(op) {
-        op.prev_pos = {x:op.x, y:op.y}
+        // op.prev_pos = {x:op.x, y:op.y}
+        op.prev_pos = {x:op.x, y:op.y_unshifted}
+
         op.children.forEach(c => cache_prev_position(c))
     }
     cache_prev_position(nn)
@@ -624,7 +626,8 @@ export default function recompute_layout() {
     // debugging
     function random_shift(op) {
         op.y_unshifted = op.y
-        if (globals.DEBUG) { op.y += Math.random()*.2 }
+        op.y += Math.random()*.001 // WTF this affects display, like need this or sometimes line doesn't display?
+        // if (globals.DEBUG) { op.y += Math.random()*.2 }
         op.children.forEach(c => random_shift(c))
     }
     random_shift(nn)
