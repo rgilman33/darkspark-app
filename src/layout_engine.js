@@ -542,8 +542,13 @@ export default function recompute_layout() {
                 if (o.is_output) { 
                     
                     let uns = utils.get_upstream_peer_nodes(o)
-                    if ((uns.length==1) && uns[0].is_tensor_node && !uns[0].is_activation_volume) {
-    
+                    if ((uns.length==1) && uns[0].is_tensor_node && !uns[0].is_activation_volume && !(uns[0].tensor_node_type=="act_vol")) {
+                        // awkward. if not actvol or WAS actvol prev. If was prev actvol. I think instead we should refactor and identify extraneous
+                        // io first, then not make it an actvol if extraneous io. This current way results in sometimes having two tensor nodes
+                        // back to back, which we don't normally have, and may confuse me later on. 
+                        // NOTE extraneous_io means it's fn_output and it stacks up w others eg mod_out to not need to be shown, otherwise we'd
+                        // have fn_out followed by mod_out, both the same tensor, even through we've removed the output node
+
                         o.x_relative -= 2 //1.8 //.9
 
                         uns[0].x_relative -= 1 //.9

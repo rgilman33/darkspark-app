@@ -422,7 +422,12 @@ export function draw_nn() {
             downstream_nodes.forEach(dn => {
                 let edge_id = current_op.node_id + dn.node_id;
                 if (!already_added[edge_id]) {
-                    edges.push([current_op, dn, edge_id]);
+                    if ((current_op.x===dn.x) && (current_op.y_unshifted===dn.y_unshifted)) {
+                        // ops are at same location, don't draw edge. 
+                        // This happens when DEBUG==false and nodes are right on top of eachother
+                    } else {
+                        edges.push([current_op, dn, edge_id]);
+                    }
                     already_added[edge_id] = true
                     stack.push(dn);
                 }

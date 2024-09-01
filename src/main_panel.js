@@ -52,6 +52,12 @@ let camera_pos_x
 let camera_pos_y
 let camera_zoom
 
+let orbit_controls_is_active = false
+let currentMouseCoords = { x: 0, y: 0 };
+let mouse_is_down = false
+let rightClickStartTime = 0;
+let hovered_op = null
+
 const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats }) => {
   const mountRef = useRef(null);
   const statsRef = useRef(null);
@@ -128,6 +134,33 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
           utils.update_labels()
       }
     });
+
+    ////
+
+    // Listener for mousedown, specifically for right-click (button === 2)
+    window.addEventListener('mousedown', function (event) {
+        if (event.button === 2) { // Right-click
+            rightClickStartTime = Date.now(); // Record the time when mousedown occurs
+        }
+    });
+    
+    // Listener for mouseup, specifically for right-click (button === 2)
+    window.addEventListener('mouseup', function (event) {
+        if (event.button === 2) { // Right-click
+            const rightClickEndTime = Date.now(); // Record the time when mouseup occurs
+            const elapsedTime = rightClickEndTime - rightClickStartTime; // Calculate the elapsed time
+            console.log("elapsedTime", elapsedTime)
+            if (elapsedTime < 200) { // Check if the time elapsed is less than 50ms
+                console.log(hoveredObject)
+                setContextMenu(
+                  contextMenu === null ? { mouseX: event.clientX - 2, mouseY: event.clientY - 4, "current_op":hovered_op } : null
+                )
+            }
+        }
+    });
+    
+
+
     // Label renderer
     labelRenderer = new CSS2DRenderer();
     labelRenderer.setSize( mount.clientWidth, mount.clientHeight );
@@ -135,15 +168,21 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
     labelRenderer.domElement.style.top = '0px';
     mount.appendChild( labelRenderer.domElement );
 
+
     // controls
     controls = new OrbitControls( camera, labelRenderer.domElement );
     // note this is added to labelrenderer dom, otherwise can't use it. If no labelrendered, use renderer dom
     controls.enableRotate = false; // Disable rotation
     controls.screenSpacePanning = true; // Allow panning in screen space
     
+    controls.addEventListener( 'start', function ( event ) {
+      orbit_controls_is_active = true
+    } );
+    
     // update labels after controls moves
     controls.addEventListener( 'end', function ( event ) {
-      console.log("orbitcontrols end")
+      orbit_controls_is_active = false
+
       utils.update_labels()
     } );
 
@@ -345,7 +384,12 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
   }
 
   function onMouseMove(event) {
+    //
 
+    currentMouseCoords.x = event.clientX
+    currentMouseCoords.y = event.clientY
+
+    //
     raycaster.layers.set(CLICKABLE_LAYER)
     const sidebarWidth = 0 //document.querySelector('.sidebar').offsetWidth;
     // Update the pointer position
@@ -356,16 +400,29 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
     let is_shift = event.shiftKey
 
     if ( intersects.length > 0 ) {
-        if ("smaller_sphere" in intersects[ 0 ].object) {
+        if ("smaller_sphere" in intersects[ 0 ].object) { // mouseover node
             if ( INTERSECTED != intersects[ 0 ].object.smaller_sphere ) {
 
                 clear_highlight_on_prev_intersected()
 
-                INTERSECTED = intersects[ 0 ].object.smaller_sphere;
-                let c = INTERSECTED.material.color
-                INTERSECTED.prev_color = c
 
-                INTERSECTED.material.color = utils.node_highlight_color 
+                if (intersects[ 0 ].object.actual_node.node_type=="module") {
+                  INTERSECTED.prev_color = utils.node_color_outline //INTERSECTED.material.color // was sometimes getting stuck on highlight color?
+
+                  INTERSECTED = intersects[ 0 ].object.outline_sphere;
+                  INTERSECTED.material.color = utils.node_highlight_color 
+
+                  setHoveredObject(INTERSECTED.actual_node); // dumb, using both. this one i don't understand how it works. bottom one is normal.
+                  // so react is using this confusing one and i'm tracking hovered op myself. This is for context menu, only get it when module
+                  hovered_op = INTERSECTED.actual_node
+                } else { //
+                  INTERSECTED.prev_color = INTERSECTED.material.color 
+                  INTERSECTED = intersects[ 0 ].object.smaller_sphere;
+
+                  setHoveredObject(null);
+                  hovered_op = null
+                }
+                
 
                 // let bigger = {x:INTERSECTED.scale.x+sphere_extra_on_hover, y:INTERSECTED.scale.y+sphere_extra_on_hover, z:INTERSECTED.scale.z}
                 // new TWEEN.Tween(INTERSECTED.scale)
@@ -380,9 +437,10 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
 
                 setTooltipObject(INTERSECTED.actual_node);
                 setTooltipPosition({ left: screen_coords.clientX, top: screen_coords.clientY });
-                setHoveredObject(INTERSECTED.actual_node);
+
+                console.log("hoveredObject", hoveredObject, tooltipObject)
             }
-        } else if ("expanded_op" in intersects[ 0 ].object) {
+        } else if ("expanded_op" in intersects[ 0 ].object) { // mouseover plane
             setTooltipObject(null);
 
             if ( INTERSECTED != intersects[ 0 ].object ) {
@@ -408,6 +466,7 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
                 background_plane.scale.y += plane_outline_extra_on_hover
 
                 setHoveredObject(intersects[ 0 ].object.expanded_op);
+                hovered_op = intersects[ 0 ].object.expanded_op
 
                 if (is_shift) console.log("mouseover plane", intersects[ 0 ].object.expanded_op)
 
@@ -420,6 +479,7 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
         INTERSECTED = null;
         setTooltipObject(null);
         setHoveredObject(null)
+        hovered_op = null
     }
   }
   let plane_outline_extra_on_hover = .14 // TODO should be responsive to current zoom, more constant in screen space
@@ -433,7 +493,7 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
                 background_plane.scale.x -= plane_outline_extra_on_hover
                 background_plane.scale.y -= plane_outline_extra_on_hover
               }
-          } else {
+          } else { // node
               INTERSECTED.material.color = INTERSECTED.prev_color
               INTERSECTED.scale.x -= sphere_extra_on_hover
               INTERSECTED.scale.y -= sphere_extra_on_hover
@@ -710,13 +770,17 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
     setContextMenu(null);
   };
   const handleRightClick = (event) => {
-    let is_shift = event.shiftKey
-    if (is_shift) {
-      event.preventDefault();
-      setContextMenu(
-        contextMenu === null ? { mouseX: event.clientX - 2, mouseY: event.clientY - 4, "current_op":hoveredObject } : null
-      )
-    }
+    event.preventDefault(); // don't want the default context menu
+    // Not actually using this anymore, doing our own manually w right click. Couldn't get timing down easily enough using this one
+    // 
+
+    // setTimeout(() => {
+    //   if (!mouse_is_down) {
+    //     setContextMenu(
+    //       contextMenu === null ? { mouseX: event.clientX - 2, mouseY: event.clientY - 4, "current_op":hoveredObject } : null
+    //     )
+    //   }
+    // },300)
   };
   const contextMenuExpandModule = () => {
     let op = contextMenu.current_op

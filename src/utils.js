@@ -25,7 +25,7 @@ export let globals = {
     nn: undefined,
     mount: undefined,
     DEBUG:false,
-    SHOW_ACTIVATION_VOLUMES:false,
+    SHOW_ACTIVATION_VOLUMES:true,
     is_tweening:false,
     COLLAPSE_ALL_RESHAPE_MODULES:true,
 }
@@ -53,6 +53,7 @@ export function get_edge_color(brightness_factor) {
 }
 
 export const node_color = new THREE.Color(...[22, 66, 91].map(d=>d/255))
+export const node_color_outline = new THREE.Color(...[7, 32, 30].map(d=>d/255))
 
 let highlight_color = new THREE.Color(...[224, 122, 95].map(d => d/255));
 export const node_highlight_color = highlight_color
@@ -279,8 +280,7 @@ export function get_z_plane(op) {
 	return interp(op.depth, [0,100], [-10, -1])
 }
 
-export function get_plane_color(op) {
-	let d = op.depth
+export function get_color_from_depth(d) {
 	let d_range = [1, globals.max_depth_visible-1]
 	let c1 = [173, 181, 189]
 	let c2 = [248, 249, 250]
@@ -293,6 +293,13 @@ export function get_plane_color(op) {
 	const color = new THREE.Color(r, g, b)
 	return color
 }
+
+export function get_plane_color(op) {
+	let d = op.depth
+    let color = get_color_from_depth(d)
+	return color
+}
+
 let MIN_SPHERE_SIZE = .06
 
 export function scale_sphere(sphere, op) {
@@ -407,7 +414,7 @@ export function get_sphere_group(n){
 
     // Create a larger sphere for click events
     let largerSphere = new THREE.Mesh(sphere_geometry,
-            new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0 })); // color doesn't matter
+        new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0 })); // color doesn't matter
     largerSphere.rotation.x = -Math.PI / 2; // Rotate 90 degrees to make it face upward
     largerSphere.position.y += 0
     
@@ -420,6 +427,20 @@ export function get_sphere_group(n){
     largerSphere.smaller_sphere = sphere
     group.add(largerSphere);
 
+    // add outline to modules
+    if (n.node_type=="module") {
+        let _sphere = new THREE.Mesh( sphere_geometry, new THREE.MeshBasicMaterial( { color: node_color_outline } ) )
+        _sphere.rotation.x = -Math.PI / 2; // Rotate 90 degrees to make it face upward
+        _sphere.position.y += .09
+        let s = sphere.scale.x+.05 // slightly bigger than inner circle
+        _sphere.scale.x = s
+        _sphere.scale.y = s
+        _sphere.scale.z = s
+        group.add(_sphere)
+        largerSphere.outline_sphere = _sphere
+    }
+
+    //
     group.children.forEach(c => c.actual_node = n) // required for onHover, click events
 
     group.children.forEach(o => {
