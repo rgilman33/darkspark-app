@@ -163,6 +163,15 @@ export function draw_nn() {
                     all_tweens.push(new TWEEN.Tween(op.mesh.position)
                             .to({x:op.x, y:0, z:op.y}, TWEEN_MS) 
                             .easing(TWEEN_EASE))
+
+                    // // globals max n_params visible may have changed, so update sphere
+                    // let new_scale = utils.get_sphere_scale(op)
+                    // if (!op.is_activation_volume && )
+                    // console.log(.scale, new_scale)
+                    // // all_tweens.push(new TWEEN.Tween(op.mesh.scale)
+                    // //         .to({x:new_scale, y:new_scale, z:new_scale}, TWEEN_MS) 
+                    // //         .easing(TWEEN_EASE))
+
                 }
             }
             op.draw_order_global = draw_order; draw_order += 1
@@ -468,8 +477,14 @@ export function draw_nn() {
     let sparkflows = sparkflows_raw.map(s => {
         return sparkflow_adjuster(s)
     })
-    let max_sparkflow = Math.max(...sparkflows)
-    let min_sparkflow = Math.min(...sparkflows)
+
+    // let max_sparkflow = Math.max(...sparkflows)
+    // let min_sparkflow = Math.min(...sparkflows)
+    sparkflows.sort((a,b)=>a-b)
+    let ix = parseInt(sparkflows.length*.05)
+    let min_sparkflow = sparkflows[ix]
+    let max_sparkflow = sparkflows[sparkflows.length-ix-1]
+
     function normalize_sparkflow(s) {
         let normalized = (sparkflow_adjuster(s) - min_sparkflow) / (max_sparkflow - min_sparkflow)
         return normalized
@@ -610,9 +625,13 @@ export function draw_nn() {
         } else if ("sparkflow" in n1) {
             sparkflow = n1["sparkflow"]
         }
-        let zoom_max_linewidth = utils.interp(camera.zoom, [10,50], [2.8, 8]) // max was at five
+        // let zoom_max_linewidth = utils.interp(camera.zoom, [10,50], [2.8, 8]) // max was at five
         // TODO this won't update on zoom scroll, only when open or close.
         // if like this then attach listener to zoom event
+        let zoom_max_linewidth = 4
+        // the remaining obstacle is minimap. If we have separate lines for minimap then can be more permissive w width here.
+        // I like more width, adds nice contrast, but lines in minimap then run together. Updating based on main cam zoom can't do
+        // bc minimap
 
         // Normalize sparkflow and get linewidth and color
         if (sparkflow) {

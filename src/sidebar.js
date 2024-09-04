@@ -24,7 +24,10 @@ const Sidebar = ({ onFilterChange, setDropdownValue, dropdownValue, depthValues,
         setDropdownValue(event.target.value);
         onFilterChange({ dropdownValue: event.target.value });
     };
-    
+    function onSelectModel(model_name) {
+        setSelectedModel(model_name)
+        setIsSidebarOpen(false)
+    }
     // url parameters
     useEffect(() => {
       // Update the URL query parameter whenever the selected setting changes
@@ -45,17 +48,35 @@ const Sidebar = ({ onFilterChange, setDropdownValue, dropdownValue, depthValues,
         });
 
     }, []);
+    
 
+    //////////////////////
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const handleMouseEnter = () => {
+        console.log("entering sidebar")
+        setIsSidebarOpen(true);
+      };
+      
+      const handleMouseLeave = () => {
+        console.log("leaving sidebar")
+        setIsSidebarOpen(false);
+      };
+      
     return (
         <div>
 
-            <div className="sidebar">
+            <div 
+              className={`sidebar ${isSidebarOpen ? 'open' : ''}`}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+            >
 
                 <Autocomplete id="model" 
                     value={selectedModel} 
                     isOptionEqualToValue={(option, value) => option.label === value}
-                    onChange={(event, newValue) => setSelectedModel(newValue['label'])}
+                    onChange={(event, newValue) => onSelectModel(newValue['label'])}
                     selectOnFocus
+                    disableClearable
                     clearOnBlur
                     handleHomeEndKeys
                     options={
@@ -77,6 +98,12 @@ const Sidebar = ({ onFilterChange, setDropdownValue, dropdownValue, depthValues,
                     ))}
                     </select>
                 </div>
+                
+                <div className="sidebar-handle">
+                    <i className="fas fa-bars"></i>
+                </div>
+
+
             </div>
         <div style={{ padding: '20px', 
                         fontFamily: 'Arial, sans-serif',
@@ -99,7 +126,10 @@ const Sidebar = ({ onFilterChange, setDropdownValue, dropdownValue, depthValues,
             </div>
             
             {/* Content Row */}
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', 
+                        justifyContent: 'space-between',
+                        gap: "20px",
+                         }}>
                 {/* First Column */}
                 <div style={{ flex: 1, textAlign: 'center' }}>
                 <div style={{ fontSize: '12px', color: 'gray' }}>n_params</div>

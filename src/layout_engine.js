@@ -97,7 +97,7 @@ export default function recompute_layout() {
                     specs.width = Math.min(specs.width, MAX_SPATIAL) // TODO have to indicate overflow here also 
                     specs.height = Math.min(specs.height, MAX_SPATIAL)
 
-                    let MAX_DEPTH = 8
+                    let MAX_DEPTH = 10
                     let depth_overflow
                     if (specs.depth > MAX_DEPTH) {
                         depth_overflow = specs.depth - MAX_DEPTH
@@ -108,7 +108,8 @@ export default function recompute_layout() {
                     specs.depth_overflow = depth_overflow
 
                     op.activation_volume_specs = specs
-                    op.is_activation_volume = true
+                    op.is_activation_volume = depth_overflow > 0 ? false : true 
+                    // unsure of how best to show these, so just not showing them. Long and thin aren't helpful to look at anyways.
                 }
             }
         } else { // expanded plane, continue inwards
@@ -215,6 +216,8 @@ export default function recompute_layout() {
 
             let dns = utils.get_downstream_peer_nodes(op_whose_dns_to_nudge)
             dns.forEach(dn => {
+                let is_same_row = (dn.draw_order_row===op_whose_dns_to_nudge.draw_order_row) && (dn.parent_op===op_whose_dns_to_nudge.parent_op)
+
                 let x_threshold = op_whose_dns_to_nudge.x_relative + op_whose_dns_to_nudge.w
                 if (dn.is_activation_volume) {
                     let actvol_x_span = get_act_vol_spans(dn.activation_volume_specs).x_span
@@ -222,7 +225,7 @@ export default function recompute_layout() {
                     // occ uses array, so int for ix. Can undo the round when occ is more flexible TODO NOTE NOTE
                 }
                 if (dn.x_relative <= x_threshold) {
-                    dn.x_relative = x_threshold + 1
+                    dn.x_relative = x_threshold + 2
                     dn.x_relative_fully_marked = true // needed for below, not when used in isolation
                     dn.history_js.push("JS x nudged forward by "+utils.nice_name(op_whose_dns_to_nudge)+" "+x_threshold+" "+dn.x_relative)
                     nudge_forward_dns(dn)
@@ -241,22 +244,25 @@ export default function recompute_layout() {
         function mark_next_x_pos(op_whose_dns_to_nudge) {
             let dns = utils.get_downstream_peer_nodes(op_whose_dns_to_nudge, op.children)
             dns.forEach(dn => {
+                let is_same_row = (dn.draw_order_row===op_whose_dns_to_nudge.draw_order_row) && (dn.parent_op===op_whose_dns_to_nudge.parent_op)
                 if (dn.x_relative_fully_marked) {
                     let to_shift = dn.x_relative - op_whose_dns_to_nudge.x_relative
-                    to_shift -= 1
+                    to_shift -= 2
                     to_shift -= op_whose_dns_to_nudge.w
                     if (dn.is_activation_volume){
-                        to_shift -= Math.round(dn.activation_volume_specs.depth) 
+                        let actvol_x_span = get_act_vol_spans(dn.activation_volume_specs).x_span
+                        to_shift -= Math.round(actvol_x_span) 
                     }
                     to_shifts.push(to_shift)
                 } else {
                     let x_threshold = op_whose_dns_to_nudge.x_relative + op_whose_dns_to_nudge.w
                     if (dn.is_activation_volume) {
-                        x_threshold += Math.round(dn.activation_volume_specs.depth) 
+                        let actvol_x_span = get_act_vol_spans(dn.activation_volume_specs).x_span
+                        x_threshold += Math.round(actvol_x_span) 
                         // occ uses array, so int for ix. Can undo the round when occ is more flexible TODO NOTE NOTE
                     }
                     if (dn.x_relative <= x_threshold) {
-                        dn.x_relative = x_threshold + 1
+                        dn.x_relative = x_threshold + 2
                         nodes_in_this_input_group.push(dn)
                         dn.history_js.push("JS x nudged forward by "+utils.nice_name(op_whose_dns_to_nudge)+" "+x_threshold+" "+dn.x_relative)
                         mark_next_x_pos(dn)
@@ -316,12 +322,12 @@ export default function recompute_layout() {
             if (!branch_node.pre_elbow) {
                 let branch_dns = branch_node.dn_ids.map(nid => globals.nodes_lookup[nid])
                 let min_x = Math.min(...branch_dns.map(o => o.x_relative))
-                branch_node.x_relative = min_x - 1
+                branch_node.x_relative = min_x - 2
                 branch_node.history_js.push("moving extension to stay one less than dn")
             } else { // is pre elbow
                 let nid = branch_node.uns[0] // will only be one
                 let un = globals.nodes_lookup[nid] 
-                branch_node.x_relative = un.x_relative + 1
+                branch_node.x_relative = un.x_relative + 2
                 branch_node.history_js.push("moving pre-elbow to stay one more than un") 
             }
         }) 
@@ -353,8 +359,10 @@ export default function recompute_layout() {
             row.nodes.sort((a,b) => a.x_relative - b.x_relative)
             let first_op = row.nodes[0]
 
+            // no, can't do back to uns and down to dns bc then get double counting, overlap eg in sd 1.4 midblock. We've been doing
+            // trace to dn for awhile and i'm good w that, don't use this trace back to un then.
             let uns = utils.get_upstream_peer_nodes(first_op) // all the way from dispatching node, relevent in eg stylegan when it is input
-            if (uns.length==1 && uns[0].node_type=="input") { 
+            if (false){ //(uns.length==1 && uns[0].node_type=="input") { 
                 // Total hack for now. Only affects stylegan as far as i know. TODO NOTE NOTE don't know if this affects non inputs. See notes below
                 // let un_max_x = Math.max(...uns.map(un => un.x_relative)) // when will there be multiple? should this be min? NOTE NOTE pay attn
                 // console.log(un_max_x, first_op.x_relative)
@@ -403,7 +411,8 @@ export default function recompute_layout() {
             }
             row.nodes.forEach(n=>n.row_actvol_hheight=row.actvol_hheight)
             
-            let base_pad = row.is_only_tensors ? .2 : .6
+            // let base_pad = row.is_only_tensors ? .2 : .6
+            let base_pad = row.is_only_tensors ? .2 : 1.
             row.pad = base_pad //Math.max(row.actvol_hheight, base_pad)
 
             
@@ -512,6 +521,9 @@ export default function recompute_layout() {
 
             // move remaining rows up to evade occupancy
             row_queue.forEach(row => {
+                // if (row.nodes[0].parent_op.name=="UNetMidBlock2DCrossAttn"){
+                //     console.log("row", row)
+                // }
                 let occ = Math.max(...occupancy.slice(row.starts_at_x, row.ends_at_x+1))
                 let new_row_y =  occ+row.pad
                 
@@ -542,7 +554,10 @@ export default function recompute_layout() {
                 if (o.is_output) { 
                     
                     let uns = utils.get_upstream_peer_nodes(o)
-                    if ((uns.length==1) && uns[0].is_tensor_node && !uns[0].is_activation_volume && !(uns[0].tensor_node_type=="act_vol")) {
+                    if ((uns.length==1) && 
+                            ["fn_out", "mod_out"].includes(uns[0].node_type) && // can't be is_tensor_node bc don't want to move elbows back. could maybe be just fn_node
+                            !uns[0].is_activation_volume && 
+                            !(uns[0].tensor_node_type=="act_vol")) {
                         // awkward. if not actvol or WAS actvol prev. If was prev actvol. I think instead we should refactor and identify extraneous
                         // io first, then not make it an actvol if extraneous io. This current way results in sometimes having two tensor nodes
                         // back to back, which we don't normally have, and may confuse me later on. 
@@ -580,17 +595,17 @@ export default function recompute_layout() {
             }
         }
 
-        // ////////////////////////////
-        // NOTE this is not correct, as this is doing it within each module, but our correction in draw_nn is absolute coords
-        // we need to simplify our elbows, make them all explicit, then can calc the slope easing once here and everything else
-        // will be good
+        // // // ////////////////////////////
+        // // NOTE this is not correct, as this is doing it within each module, but our correction in draw_nn is absolute coords
+        // // we need to simplify our elbows, make them all explicit, then can calc the slope easing once here and everything else
+        // // will be good
         // // Ease the slope 
         // // this clears the space, but in draw edges need to use it
         // op.children.forEach(o => o.x_nudge_traversed = false)
         // function _nudge_forward_dns(op_whose_dns_to_nudge) {
         //     op_whose_dns_to_nudge.x_nudge_traversed = true
 
-        //     let dns = utils.get_downstream_nodes(op_whose_dns_to_nudge, op.children)
+        //     let dns = utils.get_downstream_peer_nodes(op_whose_dns_to_nudge)
         //     dns.forEach(dn => {
         //         let min_x_dist = Math.round(Math.abs(dn.y_relative - op_whose_dns_to_nudge.y_relative) / 2)
         //         let x_threshold = op_whose_dns_to_nudge.x_relative + min_x_dist
@@ -631,7 +646,7 @@ export default function recompute_layout() {
     // debugging
     function random_shift(op) {
         op.y_unshifted = op.y
-        op.y += Math.random()*.001 // WTF this affects display, like need this or sometimes line doesn't display?
+        op.y += Math.random()*.001 // WTF this affects display, like need this or sometimes line doesn't display? happened after Line2. Only happens in some cases, after tweens
         // if (globals.DEBUG) { op.y += Math.random()*.2 }
         op.children.forEach(c => random_shift(c))
     }

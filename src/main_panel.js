@@ -56,6 +56,8 @@ let orbit_controls_is_active = false
 let currentMouseCoords = { x: 0, y: 0 };
 let mouse_is_down = false
 let rightClickStartTime = 0;
+let rightClickMouseLocation = {x:0, y:0}
+
 let hovered_op = null
 
 const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats }) => {
@@ -104,6 +106,7 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
     // minimap_camera.layers.enable(0); // Default layer
     minimap_camera.layers.enable(utils.MINIMAP_OBJECTS_LAYER);
     minimap_camera.layers.enable(utils.ACTVOL_OBJECTS_LAYER);
+    minimap_camera.layers.enable(utils.OP_NODES_OBJECTS_LAYER);
     minimap_camera.layers.disable(0);
     minimap_camera.layers.disable(CLICKABLE_LAYER);
 
@@ -117,6 +120,7 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
     camera.layers.enable(CLICKABLE_LAYER);
     camera.layers.enable(utils.MINIMAP_OBJECTS_LAYER);
     camera.layers.enable(utils.ACTVOL_OBJECTS_LAYER);
+    camera.layers.enable(utils.OP_NODES_OBJECTS_LAYER);
     camera.position.set(0, MAIN_CAMERA_HEIGHT, 0 );
     camera.zoom = 28 // for 2d
 
@@ -141,6 +145,7 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
     window.addEventListener('mousedown', function (event) {
         if (event.button === 2) { // Right-click
             rightClickStartTime = Date.now(); // Record the time when mousedown occurs
+            rightClickMouseLocation = {x:event.clientX, y:event.clientY}
         }
     });
     
@@ -149,8 +154,9 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
         if (event.button === 2) { // Right-click
             const rightClickEndTime = Date.now(); // Record the time when mouseup occurs
             const elapsedTime = rightClickEndTime - rightClickStartTime; // Calculate the elapsed time
-            console.log("elapsedTime", elapsedTime)
-            if (elapsedTime < 200) { // Check if the time elapsed is less than 50ms
+            let elapsedDist = Math.sqrt((rightClickMouseLocation.x - event.clientX)**2 + (rightClickMouseLocation.y - event.clientY)**2)
+            console.log("elapsedTime", elapsedTime, "elapsedDist", elapsedDist)
+            if ((elapsedTime < 220) && (elapsedDist<10)) { // Check if the time elapsed is less than threshold
                 console.log(hoveredObject)
                 setContextMenu(
                   contextMenu === null ? { mouseX: event.clientX - 2, mouseY: event.clientY - 4, "current_op":hovered_op } : null
@@ -200,7 +206,14 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
       console.log("minimap window dragstart")
       minimap_window_is_dragging = true
     } );
-    
+    // drag_controls.addEventListener( 'drag', function ( event ) {
+    //   console.log("minimap window dragging")
+    //   // minimap_window_is_dragging = false
+    //   utils.update_labels()
+    // } ); 
+    // this makes janky, but if don't have then on dragend labels don't update. same as issue where we have to update 
+    // before tween as well as after TODO
+
     drag_controls.addEventListener( 'dragend', function ( event ) {
       console.log("minimap window dragend")
       minimap_window_is_dragging = false
@@ -227,6 +240,17 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
         let plane = globals.nn.expanded_plane_mesh
         const boundingBox = new THREE.Box3().setFromObject(plane);
 
+        // padding in two places here, i don't understand why can't just have it in first place (here)
+        // NOTE happens bc actvols extend out of root plane. Was especially egregious in autoencoderkl, values 
+        // largely fit to that model
+        // this whole padding logic prob redo, brain fuzzy right now
+        let pad_x = 5 // in scene coords
+        let pad_y = 2
+        boundingBox.max.x += pad_x
+        boundingBox.min.x -= pad_x
+        // boundingBox.max.z += pad_y
+        boundingBox.min.z -= pad_y
+
         let scene_h_width = (boundingBox.max.x - boundingBox.min.x) / 2 // for the entire scene, not the view windo
         let scene_h_height = (boundingBox.max.z - boundingBox.min.z) / 2
 
@@ -252,8 +276,8 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
 
         // shift minimap background. relevent for long models. should shift / scroll like vscode minimap
         let scene_max_x = boundingBox.max.x
-        let shift_to_align_right = scene_max_x - minimap_background_right
-        let shift_to_align_left = -minimap_background_left
+        let shift_to_align_right = scene_max_x - minimap_background_right + pad_x // NOTE why do i need to put padding here too? why not just in bounding box?
+        let shift_to_align_left = -minimap_background_left - pad_x
 
         let main_camera_x = camera.position.x // main camera
         let main_camera_h_width = camera.right / camera.zoom
@@ -407,17 +431,19 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
 
 
                 if (intersects[ 0 ].object.actual_node.node_type=="module") {
+                  INTERSECTED = intersects[ 0 ].object.outline_sphere;
+
                   INTERSECTED.prev_color = utils.node_color_outline //INTERSECTED.material.color // was sometimes getting stuck on highlight color?
 
-                  INTERSECTED = intersects[ 0 ].object.outline_sphere;
                   INTERSECTED.material.color = utils.node_highlight_color 
 
                   setHoveredObject(INTERSECTED.actual_node); // dumb, using both. this one i don't understand how it works. bottom one is normal.
                   // so react is using this confusing one and i'm tracking hovered op myself. This is for context menu, only get it when module
                   hovered_op = INTERSECTED.actual_node
                 } else { //
-                  INTERSECTED.prev_color = INTERSECTED.material.color 
                   INTERSECTED = intersects[ 0 ].object.smaller_sphere;
+
+                  INTERSECTED.prev_color = INTERSECTED.material.color 
 
                   setHoveredObject(null);
                   hovered_op = null
@@ -856,16 +882,16 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
         let op = contextMenu.current_op
         if (op.collapsed) { // collapsed node
             return [
-              <MenuItem onClick={contextMenuExpandModule}>Expand this module {op.name}</MenuItem>,
+              <MenuItem onClick={contextMenuExpandModule}>Expand this module "{op.name}"</MenuItem>,
               <MenuItem onClick={contextMenuExpandAllOfClass}>
-                Expand all modules of class {op.name}
+                Expand all modules of class "{op.name}"
               </MenuItem>,
           ]
         } else { // expanded plane
             return [
-              <MenuItem onClick={contextMenuCollapseModule}>Collapse this module {op.name}</MenuItem>,
+              <MenuItem onClick={contextMenuCollapseModule}>Collapse this module "{op.name}"</MenuItem>,
               <MenuItem onClick={contextMenuCollapseAllOfClass}>
-                Collapse all modules of class {op.name}
+                Collapse all modules of class "{op.name}"
               </MenuItem>,
           ]
         }

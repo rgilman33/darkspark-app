@@ -77,17 +77,4 @@ const App = () => {
   );
 };
 
-
-// function App() {
-//   return (
-//     <Router>
-//       <Switch>
-//         <Route path="/">
-//           <Settings />
-//         
-//       </Switch>
-//     </Router>
-//   );
-// }
-
 export default App;

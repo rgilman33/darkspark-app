@@ -31,6 +31,7 @@ export let globals = {
 }
 export const MINIMAP_OBJECTS_LAYER = 3
 export const ACTVOL_OBJECTS_LAYER = 4
+export const OP_NODES_OBJECTS_LAYER = 5
 
 export let scene = new THREE.Scene();
 scene.background = new THREE.Color(...[248, 249, 250].map(d => d/255));
@@ -55,7 +56,9 @@ export function get_edge_color(brightness_factor) {
 export const node_color = new THREE.Color(...[22, 66, 91].map(d=>d/255))
 export const node_color_outline = new THREE.Color(...[7, 32, 30].map(d=>d/255))
 
-let highlight_color = new THREE.Color(...[224, 122, 95].map(d => d/255));
+
+
+let highlight_color = new THREE.Color(...[231, 111, 81].map(d => d/255));
 export const node_highlight_color = highlight_color
 
 // const scene_background_color = new THREE.Color(...[248, 249, 250].map(d => d/255));
@@ -76,9 +79,6 @@ export const low_priority_names = ["Sequential"] // will be removed first when l
 //
 const sphere_geometry = new THREE.CircleGeometry(1, 12);
 const square_geometry = new THREE.PlaneGeometry(1, 1);
-const box_geometry = new THREE.BoxGeometry(1, 1, 1);
-box_geometry.translate(-.5, 0, 0) // origin on the right side so box ends where tensor nodes used to be
-
 
 export const CLICKABLE_LAYER = 1
 export const TWEEN_MS = 800
@@ -206,9 +206,9 @@ export function get_edge_pts(n0, n1) {
     } else { // has vertical part
         // let min_x_dist = Math.round(Math.abs(n1.y_relative - n0.y_relative) / 2) // same as in layout_engine. should consolidate
         // let elbow_x_dist = Math.max(min_x_dist, 1)
-        let elbow_x_dist = 1
+        let elbow_x_dist = 2
 
-        if (x_dist > 1) { // elbow. Compound curve
+        if (x_dist > 2) { // elbow. Compound curve
             // if ((n0.respath_dist == n1.respath_dist) || n0.is_last_in_line){ // normal elbow TODO this needs work. Mark it in layout_engine. 
                 if ( n0.is_last_in_line){ // normal elbow 
                 let elbow = {x:n1.x-elbow_x_dist, y:0, z:n0.y}
@@ -281,7 +281,7 @@ export function get_z_plane(op) {
 }
 
 export function get_color_from_depth(d) {
-	let d_range = [1, globals.max_depth_visible-1]
+	let d_range = globals.max_depth_visible<=2 ? [0, globals.max_depth_visible] : [1, globals.max_depth_visible-1]
 	let c1 = [173, 181, 189]
 	let c2 = [248, 249, 250]
 
@@ -302,14 +302,20 @@ export function get_plane_color(op) {
 
 let MIN_SPHERE_SIZE = .06
 
-export function scale_sphere(sphere, op) {
+export function get_sphere_scale(op) {
     let v = ("n_params" in op) ? op.n_params : 0
     v += 1 // don't want sqrt of zero
 	let scalar = interp(Math.sqrt(v), [0, Math.sqrt(globals.max_n_params_visible)], [MIN_SPHERE_SIZE, MAX_SPHERE_SIZE])
-	sphere.scale.x *= scalar
-	sphere.scale.y *= scalar
-	sphere.scale.z *= scalar
+    return scalar
 }
+
+export function scale_sphere(sphere, op) {
+    let scalar = get_sphere_scale(op)
+	sphere.scale.x = scalar
+	sphere.scale.y = scalar
+	// sphere.scale.z = scalar
+}
+
 export function get_group_label(op) {
 	const div = document.createElement( 'div' );
 	div.className = 'group_label';
@@ -352,20 +358,51 @@ export function get_activation_volume(n, specs){
 
     let color = get_node_color(n)
     let act_vol_materials = specs.depth_overflow > 0 ? overflow_materials : materials
+
+    let shear_to_show_top = -0.6
+    let shear_to_show_front = -0.6
+
+    // // Calculate the scaling factor to adjust the width
+    // const scalingFactor = Math.sqrt(1 + shear_to_show_front ** 2); // Hypotenuse of the shear angle
+    // const adjustedWidth = specs.width / scalingFactor; // Adjust the width based on scaling
+    // // Create the box geometry with adjusted width
+    // const box_geometry = new THREE.BoxGeometry(specs.depth, specs.height, adjustedWidth);
+
+    const box_geometry = new THREE.BoxGeometry(specs.depth, specs.height, specs.width*.5); // total hack estimated value for scalar
+
+    const shearMatrix = new THREE.Matrix4().set(
+        1, 0, shear_to_show_front, 0, // fake 'rotate' to show front
+        0, 1, shear_to_show_top,   0, // fake 'rotate' to show top
+        0, 0, 1,   0, // No shear on Z-axis
+        0, 0, 0,   1  // No change in perspective
+    );
+    // Apply the shear transformation to the geometry
+    box_geometry.applyMatrix4(shearMatrix);
+    
+    
+    // box_geometry.translate(-.5, 0, 0) // origin on the right side so box ends where tensor nodes used to be
+    box_geometry.translate(-specs.depth/2, 0, 0) // origin on the right side so box ends where tensor nodes used to be
+    
     let sphere = new THREE.Mesh( box_geometry, act_vol_materials )
+    
+
+
+
+
 
     sphere.layers.set(ACTVOL_OBJECTS_LAYER)
 
     sphere.rotation.x = -Math.PI / 2; // Rotate 90 degrees to make it face upward
     sphere.position.y += .1 // shift towards camera so doesn't overlap w edges
 
-    // bc orthographic
-    sphere.rotation.x += .3
-    sphere.rotateOnWorldAxis(new THREE.Vector3(0, 0, 1), 0.3);
+    // // bc orthographic
+    // sphere.rotation.x += .3
+    // sphere.rotateOnWorldAxis(new THREE.Vector3(0, 0, 1), 0.3);
 
-    sphere.scale.y = specs.height
-    sphere.scale.z = specs.width
-    sphere.scale.x = specs.depth
+
+    // sphere.scale.y = specs.height
+    // sphere.scale.z = specs.width
+    // sphere.scale.x = specs.depth
 
     let group = new THREE.Group();
     group.add(sphere)
@@ -400,6 +437,7 @@ export function get_sphere_group(n){
     let color = get_node_color(n)
     if (n.node_type=="function" || n.node_type=="module") {
         sphere = new THREE.Mesh( sphere_geometry, new THREE.MeshBasicMaterial( { color: color } ) )
+        sphere.layers.set(OP_NODES_OBJECTS_LAYER)
     } else {
         sphere = new THREE.Mesh( square_geometry, new THREE.MeshBasicMaterial( { color: color } ) )
     }
@@ -626,9 +664,10 @@ export function populate_labels_pool() {
 
 let color_lookup = {
     "unknown": "grey",
-    "features": "green",
-    "spatial":"blue",
-    "batch":"purple"
+    "features": "rgb(30, 140, 100)",
+    "spatial":"rgb(20, 30, 180)",
+    // "batch":"purple"
+    "batch":"grey"
 }
 // grab label from pool, fill it out w op's info and position it at op's location
 function assign_label_to_op(op) {
@@ -686,6 +725,7 @@ function assign_label_to_op(op) {
             let spans = label.element.children
             let first_span = spans[0]
             first_span.style.display = 'inline'
+            first_span.style.color = 'rgb(50,60,60)'
 
             if (op.name=="reshape*") { // special reshape group
                 const icon = document.createElement('i');
@@ -694,30 +734,28 @@ function assign_label_to_op(op) {
                 first_span.appendChild(icon) // TODO we need to be deleting this now also
             } else { // standard node
 
-                first_span.innerText = op.name.slice(0, 10)
+                // first_span.innerText = op.name.slice(0, 10)
+                let text = formatText(op.name)
                 if ("fn_metadata" in op) {
                     if ("kernel_size" in op.fn_metadata) {
                         let k = op.fn_metadata.kernel_size
                         k = k.includes(",") ? k : "("+k+"x"+k+")"
                         k = k.replace(", ", "x")
-                        spans[1].innerText = " "+k
-                        // spans[1].style.color = 'grey'
-                        spans[1].style.display = 'inline'
+                        text += " "+k
                     }
                     if ("groups" in op.fn_metadata) {
                         if (parseInt(op.fn_metadata.groups)>1) {
-                            spans[2].innerText = " groups: "+op.fn_metadata.groups
-                            // spans[2].style.color = 'grey'
-                            spans[2].style.display = 'inline'
+                            text += "<br>groups: "+op.fn_metadata.groups
                         }
                     }
                 }
                 
                 if ("action_along_dim_type" in op) {
-                    spans[3].innerText = (" ("+op.action_along_dim_type+")")
-                    spans[3].style.display = 'inline'
-                    // spans[3].style.color = 'grey'
+                    text += ("<br>("+op.action_along_dim_type+")")
                 }
+
+                first_span.innerHTML = text
+
             }
 
         } 
@@ -730,6 +768,35 @@ function assign_label_to_op(op) {
     } else {
       console.log("label pool empty")
     }
+}
+function formatText(text) { // chatGPT
+    let formattedText = '';
+    let start = 0;
+
+    // Helper function to find the natural breakpoint
+    function findNaturalBreakpoint(str, start, maxLen) {
+        for (let i = start + 6; i <= start + maxLen; i++) {
+            if (str[i] === '_' || (str[i] && str[i] === str[i].toUpperCase() && str[i - 1] === str[i - 1].toLowerCase())) {
+                return i;
+            }
+        }
+        return start + maxLen; // Default to the max length if no breakpoint is found
+    }
+
+    while (start < text.length) {
+        if (text.length - start <= 12) {
+            // If the remaining text is less than or equal to 12, just append it
+            formattedText += text.slice(start);
+            break;
+        } else {
+            // Find a natural breakpoint between the 8th and 12th character
+            let breakPoint = findNaturalBreakpoint(text, start, 12);
+            formattedText += text.slice(start, breakPoint) + '<br>';
+            start = breakPoint;
+        }
+    }
+
+    return formattedText;
 }
 
 function remove_label_from_op_and_return_to_pool(op) {
@@ -763,7 +830,10 @@ function update_nodes_labels() {
     let screen_left = cx-h_width*bh; let screen_right = cx+h_width*bh; let screen_top = cz+h_height*bv; let screen_bottom = cz-h_height*bv
     globals.ops_of_visible_nodes.forEach(op => {
       let is_onscreen = (op.x > screen_left) && (op.x < screen_right) && (op.y>screen_bottom) && (op.y<screen_top)
-      let zoomed_enough = (globals.camera.zoom > 30 || (globals.camera.zoom > 20 && (op.node_type=="function" || op.node_type=="module")))
+    //   let zoomed_enough = (globals.camera.zoom > 22 || (globals.camera.zoom > 18 && (op.node_type=="function" || op.node_type=="module")))
+      let zoomed_enough = (globals.camera.zoom > 30 || 
+                            (globals.camera.zoom > 18 && (op.n_params > 0))
+                            )
       if (is_onscreen && zoomed_enough && op.should_draw) {
         if (!op.active_node_label) {
             assign_label_to_op(op)
@@ -838,8 +908,19 @@ function hide_overlapping_labels() {
     }
     
     // Iterate through the labelRects to check for overlaps
+    // active_labels.sort((a,b)=>a.current_op.n_params - b.current_op.n_params)
+    // more params gets precedence
+    active_labels.sort((a, b) => {
+        const aParams = a.current_op?.n_params ?? -Infinity; // Treat undefined as a very small value
+        const bParams = b.current_op?.n_params ?? -Infinity; // Treat undefined as a very small value
+    
+        return aParams - bParams;
+    });
+    // TODO should also sort by sparkflow to decide overlap btwn tensor nodes
+    
     for (let i = 0; i < active_labels.length; i++) {
-        for (let j = i + 1; j < active_labels.length; j++) {
+        // for (let j = i + 1; j < active_labels.length; j++) {
+        for (let j = active_labels.length-1; j > i; j--) {
             let l1 = active_labels[i]
             let l2 = active_labels[j]
             if (!l1.is_hidden && !l2.is_hidden) { // if both are still visible
