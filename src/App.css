@@ -46,14 +46,14 @@ cursor: pointer;
 }  */
 
 .sidebar {
-  width: 250px;
+  width: 300px;
   padding: 20px;
   box-sizing: border-box;
   background-color: white;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   position: absolute;
   bottom: 50px;
-  left: -250px;
+  left: -300px;
   z-index: 1000;
   border-radius: 8px;
   transition: left 0.3s ease;
@@ -154,6 +154,7 @@ a {
   font-size: 12px;
   padding: 2px;
   background: rgba( 0, 0, 0, .6 );
+  text-align: center;
 }
 
 .group_label {

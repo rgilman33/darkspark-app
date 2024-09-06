@@ -55,7 +55,7 @@ export default function recompute_layout() {
             return undefined
         }
     }
-    let always_show_act_vol_fns = ["conv2d", "linear", "max_pool2d", "cat", "mean", "interpolate", 
+    let always_show_act_vol_fns = ["conv2d", "conv_transpose2d", "linear", "max_pool2d", "cat", "mean", "interpolate", 
                 "avg_pool2d", "adaptive_avg_pool2d", "adaptive_avg_pool1d"] 
     let show_act_vol_if_shape_changes = ["__getitem__", "chunk", "split", "unfold", "stack"]
     function should_draw_act_volume(op){
@@ -215,8 +215,20 @@ export default function recompute_layout() {
             op_whose_dns_to_nudge.x_nudge_traversed = true
 
             let dns = utils.get_downstream_peer_nodes(op_whose_dns_to_nudge)
+            
+            ///////////////////////////
+            // if any dns are not same row, false. True only when continuing within a row.
+            let is_same_row = true
             dns.forEach(dn => {
-                let is_same_row = (dn.draw_order_row===op_whose_dns_to_nudge.draw_order_row) && (dn.parent_op===op_whose_dns_to_nudge.parent_op)
+                let _is_same_row = (dn.draw_order_row===op_whose_dns_to_nudge.draw_order_row) && (dn.parent_op===op_whose_dns_to_nudge.parent_op)
+                is_same_row = _is_same_row && is_same_row
+
+                // if (dn.uns.length>1) is_same_row = false; // if dn has multiple incoming, one of them has to be different row
+            })
+            // keeping 2 everywhere else. 
+            /////////////////////////
+
+            dns.forEach(dn => {
 
                 let x_threshold = op_whose_dns_to_nudge.x_relative + op_whose_dns_to_nudge.w
                 if (dn.is_activation_volume) {
@@ -225,7 +237,7 @@ export default function recompute_layout() {
                     // occ uses array, so int for ix. Can undo the round when occ is more flexible TODO NOTE NOTE
                 }
                 if (dn.x_relative <= x_threshold) {
-                    dn.x_relative = x_threshold + 2
+                    dn.x_relative = x_threshold + (is_same_row ? 1 : 2)
                     dn.x_relative_fully_marked = true // needed for below, not when used in isolation
                     dn.history_js.push("JS x nudged forward by "+utils.nice_name(op_whose_dns_to_nudge)+" "+x_threshold+" "+dn.x_relative)
                     nudge_forward_dns(dn)
@@ -243,11 +255,26 @@ export default function recompute_layout() {
         // see backend for full comments, as this is same as there
         function mark_next_x_pos(op_whose_dns_to_nudge) {
             let dns = utils.get_downstream_peer_nodes(op_whose_dns_to_nudge, op.children)
+
+            ///////////////////////////
+            // if any dns are not same row, false. True only when continuing within a row.
+            // same as above. could consolidate
+            let is_same_row = true
             dns.forEach(dn => {
-                let is_same_row = (dn.draw_order_row===op_whose_dns_to_nudge.draw_order_row) && (dn.parent_op===op_whose_dns_to_nudge.parent_op)
+                let _is_same_row = (dn.draw_order_row===op_whose_dns_to_nudge.draw_order_row) && (dn.parent_op===op_whose_dns_to_nudge.parent_op)
+                is_same_row = _is_same_row && is_same_row
+
+                // if (dn.uns.length>1) is_same_row = false; // if dn has multiple incoming, one of them has to be different row
+            })
+            let x_amount = is_same_row ? 1 : 2
+            // keeping 2 everywhere else. 
+            /////////////////////////
+
+
+            dns.forEach(dn => {
                 if (dn.x_relative_fully_marked) {
                     let to_shift = dn.x_relative - op_whose_dns_to_nudge.x_relative
-                    to_shift -= 2
+                    to_shift -= x_amount
                     to_shift -= op_whose_dns_to_nudge.w
                     if (dn.is_activation_volume){
                         let actvol_x_span = get_act_vol_spans(dn.activation_volume_specs).x_span
@@ -262,7 +289,7 @@ export default function recompute_layout() {
                         // occ uses array, so int for ix. Can undo the round when occ is more flexible TODO NOTE NOTE
                     }
                     if (dn.x_relative <= x_threshold) {
-                        dn.x_relative = x_threshold + 2
+                        dn.x_relative = x_threshold + x_amount
                         nodes_in_this_input_group.push(dn)
                         dn.history_js.push("JS x nudged forward by "+utils.nice_name(op_whose_dns_to_nudge)+" "+x_threshold+" "+dn.x_relative)
                         mark_next_x_pos(dn)
@@ -386,9 +413,10 @@ export default function recompute_layout() {
             let last_op = row.nodes[row.nodes.length-1]
             let dns = utils.get_downstream_peer_nodes(last_op) // all the way till terminating node, ie not just row itself
             let dn_max_x = Math.max(...dns.map(dn => dn.x_relative))
+            last_op.is_last_in_row = true
 
             let until = last_op.x_relative + last_op.w
-            row.ends_at_x = Math.max(until, dn_max_x-1) 
+            row.ends_at_x = Math.max(until, dn_max_x-2) //NOTE this 2 
 
             row.y_relative = 0 //row.nodes[0].y_relative // all have same y_relative
 
@@ -403,16 +431,29 @@ export default function recompute_layout() {
             row.nodes.forEach(n=>n.row=row)
 
             // 
-            let row_actvol_hheights = row.nodes.filter(n => n.is_activation_volume).map(n => n.activation_volume_specs.height*.6)
+            let actvol_nodes = row.nodes.filter(n => n.is_activation_volume)
+            let row_actvol_hheights = actvol_nodes.map(n => n.activation_volume_specs.height*.6)
             if (row_actvol_hheights.length>0){
                 row.actvol_hheight = Math.max(...row_actvol_hheights)
             } else {
                 row.actvol_hheight = 0
             }
             row.nodes.forEach(n=>n.row_actvol_hheight=row.actvol_hheight)
-            
-            // let base_pad = row.is_only_tensors ? .2 : .6
-            let base_pad = row.is_only_tensors ? .2 : 1.
+
+            //
+            let important_ops = ["conv2d", "linear", "max_pool2d", "cat", "mean", "interpolate", 
+                        "avg_pool2d", "adaptive_avg_pool2d", "adaptive_avg_pool1d", "matmul", "bmm"]
+            let is_primary_row = false
+            row.nodes.forEach(n => {
+                if (n.n_params >0 || n.is_activation_volume || (important_ops.includes(n.name)) ||
+                    (n.is_respath_row) // this should be if is respath row, some models have multiple    
+                ) {
+                    is_primary_row = true
+                    return
+                }
+            })
+
+            let base_pad = is_primary_row ? 1. : .2
             row.pad = base_pad //Math.max(row.actvol_hheight, base_pad)
 
             
@@ -453,7 +494,7 @@ export default function recompute_layout() {
             // Block occ for all expanded ops in the row
             row.nodes.forEach(o => {
                 if (!o.collapsed) { // expanded box within the row
-                    let top = o.y_relative + o.h + .6 //.5 //.6 NOTE NOTE this hardcoding
+                    let top = o.y_relative + o.h + 1. //.5 //.6 NOTE NOTE this hardcoding
                     let right = o.x_relative + o.w
                     block_occupancy(o.x_relative, right, top)
                 } else if (o.is_activation_volume) {
@@ -492,6 +533,29 @@ export default function recompute_layout() {
                     })
                 }
             })
+            // similar to above, but if is collapsed. Now w variable row heights these benefit in same way as do expanded boxes.
+            // it's nice for things to align. Can also do for outgoing. Should consolidate this functionality as it's all very similar
+            let first_node_in_row = row.nodes[0]
+            // if (first_node_in_row.node_type==="module") { // can also do for non-modules
+            if (true) { // can also do for non-modules
+                let uns = utils.get_upstream_nodes_from_group(first_node_in_row, op.children)
+                uns.forEach(un => {
+                    if (un.is_last_in_row) {
+                        let id_of_incoming_row = un.draw_order_row
+                        let incoming_row = rows[id_of_incoming_row]
+        
+                        if (incoming_row.y_relative < first_node_in_row.y_relative) { 
+                            if (queue_row_ids.includes(id_of_incoming_row)) { // if the incoming row is not yet fixed
+                                // if the incoming row is below the target height of the input node of the expanded box
+                                set_row_y(incoming_row, first_node_in_row.y_relative)
+                                incoming_row.has_been_moved_up_w_expanding_box = true
+                            }
+                        } 
+                    }
+                })
+            }
+            
+
             row.nodes.forEach(o => { // TODO if we like this, refactor into one fn, only diff is get_uns and .is_output. otherwise identical to above
                 if (!o.collapsed) { // expanded box within the row. bring its input nodes up to its frame of reference
                     let c_sub_inputs = o.children.filter(cc => cc.is_output)

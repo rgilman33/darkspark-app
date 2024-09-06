@@ -4,6 +4,7 @@ import { app, analytics } from './firebase';
 import React, { useState, useEffect } from 'react';
 import Sidebar from './sidebar';
 import MainPanel from './main_panel';
+import LandingPage from './landing_page';
 
 import ReactDOM from 'react-dom';
 import { BrowserRouter as Router, Route, useLocation, useNavigate, Routes } from 'react-router-dom';
@@ -51,27 +52,24 @@ const App = () => {
   return (
     <Router>
       <Routes>
-
-          <Route 
-            path="/" 
-            element={
-              <div style={{ display: 'flex', height: '100vh', width: '100%' }}>
-                <div style={{ userSelect: 'none' }}>
-                  <Sidebar onFilterChange={setFilters}
-                            setDropdownValue={setDropdownValue}
-                            dropdownValue={dropdownValue}
-                            depthValues={depthValues}
-                            overviewStats={overviewStats}
-                            />
-                </div>
-                <div className="main-panel">
-                  <MainPanel filters={filters} setDropdownValue={setDropdownValue} setDepthValues={setDepthValues} setOverviewStats={setOverviewStats}/>
-                </div>
-                {/* <div style={{ height: '100px', width: '100px', position: 'fixed', zIndex: 10 }}>
-                  <Settings></Settings>
-                </div> */}
+        <Route path="/" element={<LandingPage />} /> 
+        <Route 
+          path="/models" 
+          element={
+            <div style={{ display: 'flex', height: '100vh', width: '100%' }}>
+              <div style={{ userSelect: 'none' }}>
+                <Sidebar onFilterChange={setFilters}
+                          setDropdownValue={setDropdownValue}
+                          dropdownValue={dropdownValue}
+                          depthValues={depthValues}
+                          overviewStats={overviewStats}
+                          />
               </div>
-          } />
+              <div className="main-panel">
+                <MainPanel filters={filters} setDropdownValue={setDropdownValue} setDepthValues={setDepthValues} setOverviewStats={setOverviewStats}/>
+              </div>
+            </div>
+        } />
       </Routes>
     </Router>
   );

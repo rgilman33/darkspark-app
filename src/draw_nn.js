@@ -334,7 +334,11 @@ export function draw_nn() {
     globals.ops_of_visible_nodes.forEach(op => {
         if ("mesh" in op) {
             let node = op.mesh.children[0]
-            node.material.color = op_type_to_color(op)
+            if (globals.DEBUG) {
+                node.material.color = utils.get_node_color(op)
+            } else {
+                node.material.color = op_type_to_color(op)
+            }
         }
     })
 

@@ -1,184 +1,1318 @@
 {
-    "bat_resnext26ts": "bat_resnext26ts",
-    "beit_base_patch16_224": "beit_base_patch16_224",
-    "beitv2_base_patch16_224": "beitv2_base_patch16_224",
-    "botnet26t_256": "botnet26t_256",
-    "caformer_s18": "caformer_s18",
-    "cait_s24_224": "cait_s24_224",
-    "coat_lite_small": "coat_lite_small",
-    "coat_mini": "coat_mini",
-    "coatnet_0_224": "coatnet_0_224",
-    "convformer_s18": "convformer_s18",
-    "convit_small": "convit_small",
-    "convmixer_768_32": "convmixer_768_32",
-    "convnext_base": "convnext_base",
-    "convnextv2_base": "convnextv2_base",
-    "crossvit_base_240": "crossvit_base_240",
-    "cs3darknet_focus_s": "cs3darknet_focus_s",
-    "cs3darknet_s": "cs3darknet_s",
-    "cs3se_edgenet_x": "cs3se_edgenet_x",
-    "cs3sedarknet_l": "cs3sedarknet_l",
-    "cspdarknet53": "cspdarknet53",
-    "darknet17": "darknet17",
-    "davit_base": "davit_base",
-    "deit3_base_patch16_224": "deit3_base_patch16_224",
-    "deit_base_distilled_patch16_224": "deit_base_distilled_patch16_224",
-    "densenet121": "densenet121",
-    "dla34": "dla34",
-    "dm_nfnet_f0": "dm_nfnet_f0",
-    "dpn48b": "dpn48b",
-    "eca_botnext26ts_256": "eca_botnext26ts_256",
-    "eca_halonext26ts": "eca_halonext26ts",
-    "eca_nfnet_l0": "eca_nfnet_l0",
-    "eca_resnet33ts": "eca_resnet33ts",
-    "eca_resnext26ts": "eca_resnext26ts",
-    "eca_vovnet39b": "eca_vovnet39b",
-    "ecaresnet26t": "ecaresnet26t",
-    "edgenext_base": "edgenext_base",
-    "efficientformer_l1": "efficientformer_l1",
-    "efficientformerv2_l": "efficientformerv2_l",
-    "efficientnet_b0": "efficientnet_b0",
-    "efficientnetv2_s": "efficientnetv2_s",
-    "efficientvit_b0": "efficientvit_b0",
-    "ese_vovnet19b_dw": "ese_vovnet19b_dw",
-    "eva02_base_patch14_224": "eva02_base_patch14_224",
-    "eva02_base_patch16_clip_224": "eva02_base_patch16_clip_224",
-    "fastvit_sa12": "fastvit_sa12",
-    "fastvit_t8": "fastvit_t8",
-    "fbnetc_100": "fbnetc_100",
-    "fbnetv3_b": "fbnetv3_b",
-    "flexivit_base": "flexivit_base",
-    "focalnet_base_lrf": "focalnet_base_lrf",
-    "focalnet_base_srf": "focalnet_base_srf",
-    "gcresnet33ts": "gcresnet33ts",
-    "gcvit_base": "gcvit_base",
-    "gernet_s": "gernet_s",
-    "ghostnet_050": "ghostnet_050",
-    "gmixer_12_224": "gmixer_12_224",
-    "gmlp_b16_224": "gmlp_b16_224",
-    "halo2botnet50ts_256": "halo2botnet50ts_256",
-    "halonet26t": "halonet26t",
-    "haloregnetz_b": "haloregnetz_b",
-    "hardcorenas_a": "hardcorenas_a",
-    "hrnet_w18": "hrnet_w18",
-    "inception_next_base": "inception_next_base",
-    "inception_v3": "inception_v3",
-    "inception_v4": "inception_v4",
-    "lambda_resnet26t": "lambda_resnet26t",
-    "lamhalobotnet50ts_256": "lamhalobotnet50ts_256",
-    "lcnet_035": "lcnet_035",
-    "legacy_senet154": "legacy_senet154",
-    "legacy_seresnet18": "legacy_seresnet18",
-    "legacy_xception": "legacy_xception",
-    "levit_128": "levit_128",
-    "levit_conv_128": "levit_conv_128",
-    "maxxvitv2_rmlp_base_rw_224": "maxxvitv2_rmlp_base_rw_224",
-    "mixer_b16_224": "mixer_b16_224",
-    "mixnet_m": "mixnet_m",
-    "mnasnet_050": "mnasnet_050",
-    "mobilenetv2_035": "mobilenetv2_035",
-    "mobilenetv3_rw": "mobilenetv3_rw",
-    "mobileone_s0": "mobileone_s0",
-    "mobilevit_s": "mobilevit_s",
-    "mobilevitv2_050": "mobilevitv2_050",
-    "mvitv2_base": "mvitv2_base",
-    "nasnetalarge": "nasnetalarge",
-    "nest_base": "nest_base",
-    "nf_ecaresnet26": "nf_ecaresnet26",
-    "nf_regnet_b0": "nf_regnet_b0",
-    "nf_resnet26": "nf_resnet26",
-    "nfnet_f0": "nfnet_f0",
-    "pit_b_224": "pit_b_224",
-    "pnasnet5large": "pnasnet5large",
-    "poolformer_m36": "poolformer_m36",
-    "poolformerv2_m36": "poolformerv2_m36",
-    "pvt_v2_b0": "pvt_v2_b0",
-    "regnetv_040": "regnetv_040",
-    "repghostnet_050": "repghostnet_050",
-    "repvgg_a0": "repvgg_a0",
-    "repvit_m1": "repvit_m1",
-    "res2net50_14w_8s": "res2net50_14w_8s",
-    "resmlp_12_224": "resmlp_12_224",
-    "resnest14d": "resnest14d",
-    "resnet18": "resnet18",
-    "resnet50": "resnet50",
-    "resnetv2_50": "resnetv2_50",
-    "resnext26ts": "resnext26ts",
-    "rexnetr_100": "rexnetr_100",
-    "samvit_base_patch16_224": "samvit_base_patch16_224",
-    "sebotnet33ts_256": "sebotnet33ts_256",
-    "sedarknet21": "sedarknet21",
-    "sehalonet33ts": "sehalonet33ts",
-    "selecsls42": "selecsls42",
-    "semnasnet_050": "semnasnet_050",
-    "senet154": "senet154",
-    "sequencer2d_s": "sequencer2d_s",
-    "seresnet18": "seresnet18",
-    "seresnext26d_32x4d": "seresnext26d_32x4d",
-    "skresnet18": "skresnet18",
-    "spnasnet_100": "spnasnet_100",
-    "swin_base_patch4_window7_224": "swin_base_patch4_window7_224",
-    "swin_s3_base_224": "swin_s3_base_224",
-    "swinv2_cr_base_224": "swinv2_cr_base_224",
-    "tiny_vit_5m_224": "tiny_vit_5m_224",
-    "tinynet_a": "tinynet_a",
-    "tnt_b_patch16_224": "tnt_b_patch16_224",
-    "tresnet_m": "tresnet_m",
-    "twins_pcpvt_base": "twins_pcpvt_base",
-    "twins_svt_base": "twins_svt_base",
-    "vgg11": "vgg11",
-    "vgg19": "vgg19",
-    "visformer_small": "visformer_small",
-    "vit_base_patch8_224": "vit_base_patch8_224",
-    "vit_base_patch14_dinov2": "vit_base_patch14_dinov2",
-    "vit_relpos_base_patch16_224": "vit_relpos_base_patch16_224",
-    "volo_d1_224": "volo_d1_224",
-    "volo_d2_224": "volo_d2_224",
-    "vovnet39a": "vovnet39a",
-    "xception41": "xception41",
-    "xcit_medium_24_p8_224": "xcit_medium_24_p8_224",
-    "stable-diffusion-v1-4": "stable-diffusion-v1-4",
-    "gemma-2b": "gemma-2b",
-    "pali-gemma": "pali-gemma",
-    "phi": "phi",
-    "AutoencoderKL": "AutoencoderKL",
-    "swinv2-transformers": "swinv2-transformers",
-    "CLIP": "CLIP",
-    "yolo": "yolo",
-    "yolov10s": "yolov10s",
-    "yolos-small": "yolos-small",
-    "dinov2": "dinov2",
-    "stylegan-2": "stylegan-2",
-    "gigagan": "gigagan",
-    "maskrcnn_resnet50_fpn": "maskrcnn_resnet50_fpn",
-    "sd-1.5-runway": "sd-1.5-runway",
-    "sd-1.5-runway-ControlNet": "sd-1.5-runway-ControlNet",
-    "stable-cascade-prior": "stable-cascade-prior",
-    "stable-cascade-decoder": "stable-cascade-decoder",
-    "sd-xl-base": "sd-xl-base",
-    "sd-xl-refiner": "sd-xl-refiner",
-    "sdedit": "sdedit",
-    "style-aligned": "style-aligned",
-    "sdxl-flash": "sdxl-flash",
-    "sd-turbo": "sd-turbo",
-    "sd-turbo-img2img": "sd-turbo-img2img",
-    "dpt-large": "dpt-large",
-    "dpt-hybrid-midas": "dpt-hybrid-midas",
-    "GLPN": "GLPN",
-    "hiera-tiny": "hiera-tiny",
-    "depth-anything-large-hf": "depth-anything-large-hf",
-    "detr-resnet-50": "detr-resnet-50",
-    "segformer": "segformer",
-    "maskformer-swin-tiny-coco": "maskformer-swin-tiny-coco",
-    "perceiver": "perceiver",
-    "t5": "t5",
-    "florence-2-base": "florence-2-base",
-    "sd3": "sd3",
-    "mask2former": "mask2former",
-    "mask2former-swin-large-ade-semantic": "mask2former-swin-large-ade-semantic",
-    "marigold": "marigold",
-    "rtdetr_r50vd": "rtdetr_r50vd",
-    "upernet-convnext-tiny": "upernet-convnext-tiny",
-    "vit-msn-small": "vit-msn-small",
-    "SDXL-Lightening-1step": "SDXL-Lightening-1step"
+    "bat_resnext26ts": {
+        "name": "bat_resnext26ts",
+        "trace_metadata": {
+            "name": "bat_resnext26ts",
+            "library": "timm"
+        }
+    },
+    "beit_base_patch16_224": {
+        "name": "beit_base_patch16_224",
+        "trace_metadata": {
+            "name": "beit_base_patch16_224",
+            "library": "timm"
+        }
+    },
+    "beitv2_base_patch16_224": {
+        "name": "beitv2_base_patch16_224",
+        "trace_metadata": {
+            "name": "beitv2_base_patch16_224",
+            "library": "timm"
+        }
+    },
+    "botnet26t_256": {
+        "name": "botnet26t_256",
+        "trace_metadata": {
+            "name": "botnet26t_256",
+            "library": "timm"
+        }
+    },
+    "caformer_s18": {
+        "name": "caformer_s18",
+        "trace_metadata": {
+            "name": "caformer_s18",
+            "library": "timm"
+        }
+    },
+    "cait_s24_224": {
+        "name": "cait_s24_224",
+        "trace_metadata": {
+            "name": "cait_s24_224",
+            "library": "timm"
+        }
+    },
+    "coat_lite_small": {
+        "name": "coat_lite_small",
+        "trace_metadata": {
+            "name": "coat_lite_small",
+            "library": "timm"
+        }
+    },
+    "coat_mini": {
+        "name": "coat_mini",
+        "trace_metadata": {
+            "name": "coat_mini",
+            "library": "timm"
+        }
+    },
+    "coatnet_0_224": {
+        "name": "coatnet_0_224",
+        "trace_metadata": {
+            "name": "coatnet_0_224",
+            "library": "timm"
+        }
+    },
+    "convformer_s18": {
+        "name": "convformer_s18",
+        "trace_metadata": {
+            "name": "convformer_s18",
+            "library": "timm"
+        }
+    },
+    "convit_small": {
+        "name": "convit_small",
+        "trace_metadata": {
+            "name": "convit_small",
+            "library": "timm"
+        }
+    },
+    "convmixer_768_32": {
+        "name": "convmixer_768_32",
+        "trace_metadata": {
+            "name": "convmixer_768_32",
+            "library": "timm"
+        }
+    },
+    "convnext_base": {
+        "name": "convnext_base",
+        "trace_metadata": {
+            "name": "convnext_base",
+            "library": "timm"
+        }
+    },
+    "convnextv2_base": {
+        "name": "convnextv2_base",
+        "trace_metadata": {
+            "name": "convnextv2_base",
+            "library": "timm"
+        }
+    },
+    "crossvit_base_240": {
+        "name": "crossvit_base_240",
+        "trace_metadata": {
+            "name": "crossvit_base_240",
+            "library": "timm"
+        }
+    },
+    "cs3darknet_focus_s": {
+        "name": "cs3darknet_focus_s",
+        "trace_metadata": {
+            "name": "cs3darknet_focus_s",
+            "library": "timm"
+        }
+    },
+    "cs3darknet_s": {
+        "name": "cs3darknet_s",
+        "trace_metadata": {
+            "name": "cs3darknet_s",
+            "library": "timm"
+        }
+    },
+    "cs3se_edgenet_x": {
+        "name": "cs3se_edgenet_x",
+        "trace_metadata": {
+            "name": "cs3se_edgenet_x",
+            "library": "timm"
+        }
+    },
+    "cs3sedarknet_l": {
+        "name": "cs3sedarknet_l",
+        "trace_metadata": {
+            "name": "cs3sedarknet_l",
+            "library": "timm"
+        }
+    },
+    "cspdarknet53": {
+        "name": "cspdarknet53",
+        "trace_metadata": {
+            "name": "cspdarknet53",
+            "library": "timm"
+        }
+    },
+    "darknet17": {
+        "name": "darknet17",
+        "trace_metadata": {
+            "name": "darknet17",
+            "library": "timm"
+        }
+    },
+    "davit_base": {
+        "name": "davit_base",
+        "trace_metadata": {
+            "name": "davit_base",
+            "library": "timm"
+        }
+    },
+    "deit3_base_patch16_224": {
+        "name": "deit3_base_patch16_224",
+        "trace_metadata": {
+            "name": "deit3_base_patch16_224",
+            "library": "timm"
+        }
+    },
+    "deit_base_distilled_patch16_224": {
+        "name": "deit_base_distilled_patch16_224",
+        "trace_metadata": {
+            "name": "deit_base_distilled_patch16_224",
+            "library": "timm"
+        }
+    },
+    "densenet121": {
+        "name": "densenet121",
+        "trace_metadata": {
+            "name": "densenet121",
+            "library": "timm"
+        }
+    },
+    "dla34": {
+        "name": "dla34",
+        "trace_metadata": {
+            "name": "dla34",
+            "library": "timm"
+        }
+    },
+    "dm_nfnet_f0": {
+        "name": "dm_nfnet_f0",
+        "trace_metadata": {
+            "name": "dm_nfnet_f0",
+            "library": "timm"
+        }
+    },
+    "dpn48b": {
+        "name": "dpn48b",
+        "trace_metadata": {
+            "name": "dpn48b",
+            "library": "timm"
+        }
+    },
+    "eca_botnext26ts_256": {
+        "name": "eca_botnext26ts_256",
+        "trace_metadata": {
+            "name": "eca_botnext26ts_256",
+            "library": "timm"
+        }
+    },
+    "eca_halonext26ts": {
+        "name": "eca_halonext26ts",
+        "trace_metadata": {
+            "name": "eca_halonext26ts",
+            "library": "timm"
+        }
+    },
+    "eca_nfnet_l0": {
+        "name": "eca_nfnet_l0",
+        "trace_metadata": {
+            "name": "eca_nfnet_l0",
+            "library": "timm"
+        }
+    },
+    "eca_resnet33ts": {
+        "name": "eca_resnet33ts",
+        "trace_metadata": {
+            "name": "eca_resnet33ts",
+            "library": "timm"
+        }
+    },
+    "eca_resnext26ts": {
+        "name": "eca_resnext26ts",
+        "trace_metadata": {
+            "name": "eca_resnext26ts",
+            "library": "timm"
+        }
+    },
+    "eca_vovnet39b": {
+        "name": "eca_vovnet39b",
+        "trace_metadata": {
+            "name": "eca_vovnet39b",
+            "library": "timm"
+        }
+    },
+    "ecaresnet26t": {
+        "name": "ecaresnet26t",
+        "trace_metadata": {
+            "name": "ecaresnet26t",
+            "library": "timm"
+        }
+    },
+    "edgenext_base": {
+        "name": "edgenext_base",
+        "trace_metadata": {
+            "name": "edgenext_base",
+            "library": "timm"
+        }
+    },
+    "efficientformer_l1": {
+        "name": "efficientformer_l1",
+        "trace_metadata": {
+            "name": "efficientformer_l1",
+            "library": "timm"
+        }
+    },
+    "efficientformerv2_l": {
+        "name": "efficientformerv2_l",
+        "trace_metadata": {
+            "name": "efficientformerv2_l",
+            "library": "timm"
+        }
+    },
+    "efficientnet_b0": {
+        "name": "efficientnet_b0",
+        "trace_metadata": {
+            "name": "efficientnet_b0",
+            "library": "timm"
+        }
+    },
+    "efficientnetv2_s": {
+        "name": "efficientnetv2_s",
+        "trace_metadata": {
+            "name": "efficientnetv2_s",
+            "library": "timm"
+        }
+    },
+    "efficientvit_b0": {
+        "name": "efficientvit_b0",
+        "trace_metadata": {
+            "name": "efficientvit_b0",
+            "library": "timm"
+        }
+    },
+    "ese_vovnet19b_dw": {
+        "name": "ese_vovnet19b_dw",
+        "trace_metadata": {
+            "name": "ese_vovnet19b_dw",
+            "library": "timm"
+        }
+    },
+    "eva02_base_patch14_224": {
+        "name": "eva02_base_patch14_224",
+        "trace_metadata": {
+            "name": "eva02_base_patch14_224",
+            "library": "timm"
+        }
+    },
+    "eva02_base_patch16_clip_224": {
+        "name": "eva02_base_patch16_clip_224",
+        "trace_metadata": {
+            "name": "eva02_base_patch16_clip_224",
+            "library": "timm"
+        }
+    },
+    "fastvit_sa12": {
+        "name": "fastvit_sa12",
+        "trace_metadata": {
+            "name": "fastvit_sa12",
+            "library": "timm"
+        }
+    },
+    "fastvit_t8": {
+        "name": "fastvit_t8",
+        "trace_metadata": {
+            "name": "fastvit_t8",
+            "library": "timm"
+        }
+    },
+    "fbnetc_100": {
+        "name": "fbnetc_100",
+        "trace_metadata": {
+            "name": "fbnetc_100",
+            "library": "timm"
+        }
+    },
+    "fbnetv3_b": {
+        "name": "fbnetv3_b",
+        "trace_metadata": {
+            "name": "fbnetv3_b",
+            "library": "timm"
+        }
+    },
+    "flexivit_base": {
+        "name": "flexivit_base",
+        "trace_metadata": {
+            "name": "flexivit_base",
+            "library": "timm"
+        }
+    },
+    "focalnet_base_lrf": {
+        "name": "focalnet_base_lrf",
+        "trace_metadata": {
+            "name": "focalnet_base_lrf",
+            "library": "timm"
+        }
+    },
+    "focalnet_base_srf": {
+        "name": "focalnet_base_srf",
+        "trace_metadata": {
+            "name": "focalnet_base_srf",
+            "library": "timm"
+        }
+    },
+    "gcresnet33ts": {
+        "name": "gcresnet33ts",
+        "trace_metadata": {
+            "name": "gcresnet33ts",
+            "library": "timm"
+        }
+    },
+    "gcvit_base": {
+        "name": "gcvit_base",
+        "trace_metadata": {
+            "name": "gcvit_base",
+            "library": "timm"
+        }
+    },
+    "gernet_s": {
+        "name": "gernet_s",
+        "trace_metadata": {
+            "name": "gernet_s",
+            "library": "timm"
+        }
+    },
+    "ghostnet_050": {
+        "name": "ghostnet_050",
+        "trace_metadata": {
+            "name": "ghostnet_050",
+            "library": "timm"
+        }
+    },
+    "gmixer_12_224": {
+        "name": "gmixer_12_224",
+        "trace_metadata": {
+            "name": "gmixer_12_224",
+            "library": "timm"
+        }
+    },
+    "gmlp_b16_224": {
+        "name": "gmlp_b16_224",
+        "trace_metadata": {
+            "name": "gmlp_b16_224",
+            "library": "timm"
+        }
+    },
+    "halo2botnet50ts_256": {
+        "name": "halo2botnet50ts_256",
+        "trace_metadata": {
+            "name": "halo2botnet50ts_256",
+            "library": "timm"
+        }
+    },
+    "halonet26t": {
+        "name": "halonet26t",
+        "trace_metadata": {
+            "name": "halonet26t",
+            "library": "timm"
+        }
+    },
+    "haloregnetz_b": {
+        "name": "haloregnetz_b",
+        "trace_metadata": {
+            "name": "haloregnetz_b",
+            "library": "timm"
+        }
+    },
+    "hardcorenas_a": {
+        "name": "hardcorenas_a",
+        "trace_metadata": {
+            "name": "hardcorenas_a",
+            "library": "timm"
+        }
+    },
+    "hrnet_w18": {
+        "name": "hrnet_w18",
+        "trace_metadata": {
+            "name": "hrnet_w18",
+            "library": "timm"
+        }
+    },
+    "inception_next_base": {
+        "name": "inception_next_base",
+        "trace_metadata": {
+            "name": "inception_next_base",
+            "library": "timm"
+        }
+    },
+    "inception_v3": {
+        "name": "inception_v3",
+        "trace_metadata": {
+            "name": "inception_v3",
+            "library": "timm"
+        }
+    },
+    "inception_v4": {
+        "name": "inception_v4",
+        "trace_metadata": {
+            "name": "inception_v4",
+            "library": "timm"
+        }
+    },
+    "lambda_resnet26t": {
+        "name": "lambda_resnet26t",
+        "trace_metadata": {
+            "name": "lambda_resnet26t",
+            "library": "timm"
+        }
+    },
+    "lamhalobotnet50ts_256": {
+        "name": "lamhalobotnet50ts_256",
+        "trace_metadata": {
+            "name": "lamhalobotnet50ts_256",
+            "library": "timm"
+        }
+    },
+    "lcnet_035": {
+        "name": "lcnet_035",
+        "trace_metadata": {
+            "name": "lcnet_035",
+            "library": "timm"
+        }
+    },
+    "legacy_senet154": {
+        "name": "legacy_senet154",
+        "trace_metadata": {
+            "name": "legacy_senet154",
+            "library": "timm"
+        }
+    },
+    "legacy_seresnet18": {
+        "name": "legacy_seresnet18",
+        "trace_metadata": {
+            "name": "legacy_seresnet18",
+            "library": "timm"
+        }
+    },
+    "legacy_xception": {
+        "name": "legacy_xception",
+        "trace_metadata": {
+            "name": "legacy_xception",
+            "library": "timm"
+        }
+    },
+    "levit_128": {
+        "name": "levit_128",
+        "trace_metadata": {
+            "name": "levit_128",
+            "library": "timm"
+        }
+    },
+    "levit_conv_128": {
+        "name": "levit_conv_128",
+        "trace_metadata": {
+            "name": "levit_conv_128",
+            "library": "timm"
+        }
+    },
+    "maxxvitv2_rmlp_base_rw_224": {
+        "name": "maxxvitv2_rmlp_base_rw_224",
+        "trace_metadata": {
+            "name": "maxxvitv2_rmlp_base_rw_224",
+            "library": "timm"
+        }
+    },
+    "mixer_b16_224": {
+        "name": "mixer_b16_224",
+        "trace_metadata": {
+            "name": "mixer_b16_224",
+            "library": "timm"
+        }
+    },
+    "mixnet_m": {
+        "name": "mixnet_m",
+        "trace_metadata": {
+            "name": "mixnet_m",
+            "library": "timm"
+        }
+    },
+    "mnasnet_050": {
+        "name": "mnasnet_050",
+        "trace_metadata": {
+            "name": "mnasnet_050",
+            "library": "timm"
+        }
+    },
+    "mobilenetv2_035": {
+        "name": "mobilenetv2_035",
+        "trace_metadata": {
+            "name": "mobilenetv2_035",
+            "library": "timm"
+        }
+    },
+    "mobilenetv3_rw": {
+        "name": "mobilenetv3_rw",
+        "trace_metadata": {
+            "name": "mobilenetv3_rw",
+            "library": "timm"
+        }
+    },
+    "mobileone_s0": {
+        "name": "mobileone_s0",
+        "trace_metadata": {
+            "name": "mobileone_s0",
+            "library": "timm"
+        }
+    },
+    "mobilevit_s": {
+        "name": "mobilevit_s",
+        "trace_metadata": {
+            "name": "mobilevit_s",
+            "library": "timm"
+        }
+    },
+    "mobilevitv2_050": {
+        "name": "mobilevitv2_050",
+        "trace_metadata": {
+            "name": "mobilevitv2_050",
+            "library": "timm"
+        }
+    },
+    "mvitv2_base": {
+        "name": "mvitv2_base",
+        "trace_metadata": {
+            "name": "mvitv2_base",
+            "library": "timm"
+        }
+    },
+    "nasnetalarge": {
+        "name": "nasnetalarge",
+        "trace_metadata": {
+            "name": "nasnetalarge",
+            "library": "timm"
+        }
+    },
+    "nest_base": {
+        "name": "nest_base",
+        "trace_metadata": {
+            "name": "nest_base",
+            "library": "timm"
+        }
+    },
+    "nf_ecaresnet26": {
+        "name": "nf_ecaresnet26",
+        "trace_metadata": {
+            "name": "nf_ecaresnet26",
+            "library": "timm"
+        }
+    },
+    "nf_regnet_b0": {
+        "name": "nf_regnet_b0",
+        "trace_metadata": {
+            "name": "nf_regnet_b0",
+            "library": "timm"
+        }
+    },
+    "nf_resnet26": {
+        "name": "nf_resnet26",
+        "trace_metadata": {
+            "name": "nf_resnet26",
+            "library": "timm"
+        }
+    },
+    "nfnet_f0": {
+        "name": "nfnet_f0",
+        "trace_metadata": {
+            "name": "nfnet_f0",
+            "library": "timm"
+        }
+    },
+    "pit_b_224": {
+        "name": "pit_b_224",
+        "trace_metadata": {
+            "name": "pit_b_224",
+            "library": "timm"
+        }
+    },
+    "pnasnet5large": {
+        "name": "pnasnet5large",
+        "trace_metadata": {
+            "name": "pnasnet5large",
+            "library": "timm"
+        }
+    },
+    "poolformer_m36": {
+        "name": "poolformer_m36",
+        "trace_metadata": {
+            "name": "poolformer_m36",
+            "library": "timm"
+        }
+    },
+    "poolformerv2_m36": {
+        "name": "poolformerv2_m36",
+        "trace_metadata": {
+            "name": "poolformerv2_m36",
+            "library": "timm"
+        }
+    },
+    "pvt_v2_b0": {
+        "name": "pvt_v2_b0",
+        "trace_metadata": {
+            "name": "pvt_v2_b0",
+            "library": "timm"
+        }
+    },
+    "regnetv_040": {
+        "name": "regnetv_040",
+        "trace_metadata": {
+            "name": "regnetv_040",
+            "library": "timm"
+        }
+    },
+    "repghostnet_050": {
+        "name": "repghostnet_050",
+        "trace_metadata": {
+            "name": "repghostnet_050",
+            "library": "timm"
+        }
+    },
+    "repvgg_a0": {
+        "name": "repvgg_a0",
+        "trace_metadata": {
+            "name": "repvgg_a0",
+            "library": "timm"
+        }
+    },
+    "repvit_m1": {
+        "name": "repvit_m1",
+        "trace_metadata": {
+            "name": "repvit_m1",
+            "library": "timm"
+        }
+    },
+    "res2net50_14w_8s": {
+        "name": "res2net50_14w_8s",
+        "trace_metadata": {
+            "name": "res2net50_14w_8s",
+            "library": "timm"
+        }
+    },
+    "resmlp_12_224": {
+        "name": "resmlp_12_224",
+        "trace_metadata": {
+            "name": "resmlp_12_224",
+            "library": "timm"
+        }
+    },
+    "resnest14d": {
+        "name": "resnest14d",
+        "trace_metadata": {
+            "name": "resnest14d",
+            "library": "timm"
+        }
+    },
+    "resnet18": {
+        "name": "resnet18",
+        "trace_metadata": {
+            "name": "resnet18",
+            "library": "timm"
+        }
+    },
+    "resnet50": {
+        "name": "resnet50",
+        "trace_metadata": {
+            "name": "resnet50",
+            "library": "timm"
+        }
+    },
+    "resnetv2_50": {
+        "name": "resnetv2_50",
+        "trace_metadata": {
+            "name": "resnetv2_50",
+            "library": "timm"
+        }
+    },
+    "resnext26ts": {
+        "name": "resnext26ts",
+        "trace_metadata": {
+            "name": "resnext26ts",
+            "library": "timm"
+        }
+    },
+    "rexnetr_100": {
+        "name": "rexnetr_100",
+        "trace_metadata": {
+            "name": "rexnetr_100",
+            "library": "timm"
+        }
+    },
+    "samvit_base_patch16_224": {
+        "name": "samvit_base_patch16_224",
+        "trace_metadata": {
+            "name": "samvit_base_patch16_224",
+            "library": "timm"
+        }
+    },
+    "sebotnet33ts_256": {
+        "name": "sebotnet33ts_256",
+        "trace_metadata": {
+            "name": "sebotnet33ts_256",
+            "library": "timm"
+        }
+    },
+    "sedarknet21": {
+        "name": "sedarknet21",
+        "trace_metadata": {
+            "name": "sedarknet21",
+            "library": "timm"
+        }
+    },
+    "sehalonet33ts": {
+        "name": "sehalonet33ts",
+        "trace_metadata": {
+            "name": "sehalonet33ts",
+            "library": "timm"
+        }
+    },
+    "selecsls42": {
+        "name": "selecsls42",
+        "trace_metadata": {
+            "name": "selecsls42",
+            "library": "timm"
+        }
+    },
+    "semnasnet_050": {
+        "name": "semnasnet_050",
+        "trace_metadata": {
+            "name": "semnasnet_050",
+            "library": "timm"
+        }
+    },
+    "senet154": {
+        "name": "senet154",
+        "trace_metadata": {
+            "name": "senet154",
+            "library": "timm"
+        }
+    },
+    "sequencer2d_s": {
+        "name": "sequencer2d_s",
+        "trace_metadata": {
+            "name": "sequencer2d_s",
+            "library": "timm"
+        }
+    },
+    "seresnet18": {
+        "name": "seresnet18",
+        "trace_metadata": {
+            "name": "seresnet18",
+            "library": "timm"
+        }
+    },
+    "seresnext26d_32x4d": {
+        "name": "seresnext26d_32x4d",
+        "trace_metadata": {
+            "name": "seresnext26d_32x4d",
+            "library": "timm"
+        }
+    },
+    "skresnet18": {
+        "name": "skresnet18",
+        "trace_metadata": {
+            "name": "skresnet18",
+            "library": "timm"
+        }
+    },
+    "spnasnet_100": {
+        "name": "spnasnet_100",
+        "trace_metadata": {
+            "name": "spnasnet_100",
+            "library": "timm"
+        }
+    },
+    "swin_base_patch4_window7_224": {
+        "name": "swin_base_patch4_window7_224",
+        "trace_metadata": {
+            "name": "swin_base_patch4_window7_224",
+            "library": "timm"
+        }
+    },
+    "swin_s3_base_224": {
+        "name": "swin_s3_base_224",
+        "trace_metadata": {
+            "name": "swin_s3_base_224",
+            "library": "timm"
+        }
+    },
+    "swinv2_cr_base_224": {
+        "name": "swinv2_cr_base_224",
+        "trace_metadata": {
+            "name": "swinv2_cr_base_224",
+            "library": "timm"
+        }
+    },
+    "tiny_vit_5m_224": {
+        "name": "tiny_vit_5m_224",
+        "trace_metadata": {
+            "name": "tiny_vit_5m_224",
+            "library": "timm"
+        }
+    },
+    "tinynet_a": {
+        "name": "tinynet_a",
+        "trace_metadata": {
+            "name": "tinynet_a",
+            "library": "timm"
+        }
+    },
+    "tnt_b_patch16_224": {
+        "name": "tnt_b_patch16_224",
+        "trace_metadata": {
+            "name": "tnt_b_patch16_224",
+            "library": "timm"
+        }
+    },
+    "tresnet_m": {
+        "name": "tresnet_m",
+        "trace_metadata": {
+            "name": "tresnet_m",
+            "library": "timm"
+        }
+    },
+    "twins_pcpvt_base": {
+        "name": "twins_pcpvt_base",
+        "trace_metadata": {
+            "name": "twins_pcpvt_base",
+            "library": "timm"
+        }
+    },
+    "twins_svt_base": {
+        "name": "twins_svt_base",
+        "trace_metadata": {
+            "name": "twins_svt_base",
+            "library": "timm"
+        }
+    },
+    "vgg11": {
+        "name": "vgg11",
+        "trace_metadata": {
+            "name": "vgg11",
+            "library": "timm"
+        }
+    },
+    "vgg19": {
+        "name": "vgg19",
+        "trace_metadata": {
+            "name": "vgg19",
+            "library": "timm"
+        }
+    },
+    "visformer_small": {
+        "name": "visformer_small",
+        "trace_metadata": {
+            "name": "visformer_small",
+            "library": "timm"
+        }
+    },
+    "vit_base_patch8_224": {
+        "name": "vit_base_patch8_224",
+        "trace_metadata": {
+            "name": "vit_base_patch8_224",
+            "library": "timm"
+        }
+    },
+    "vit_base_patch14_dinov2": {
+        "name": "vit_base_patch14_dinov2",
+        "trace_metadata": {
+            "name": "vit_base_patch14_dinov2",
+            "library": "timm"
+        }
+    },
+    "vit_relpos_base_patch16_224": {
+        "name": "vit_relpos_base_patch16_224",
+        "trace_metadata": {
+            "name": "vit_relpos_base_patch16_224",
+            "library": "timm"
+        }
+    },
+    "volo_d1_224": {
+        "name": "volo_d1_224",
+        "trace_metadata": {
+            "name": "volo_d1_224",
+            "library": "timm"
+        }
+    },
+    "volo_d2_224": {
+        "name": "volo_d2_224",
+        "trace_metadata": {
+            "name": "volo_d2_224",
+            "library": "timm"
+        }
+    },
+    "vovnet39a": {
+        "name": "vovnet39a",
+        "trace_metadata": {
+            "name": "vovnet39a",
+            "library": "timm"
+        }
+    },
+    "xception41": {
+        "name": "xception41",
+        "trace_metadata": {
+            "name": "xception41",
+            "library": "timm"
+        }
+    },
+    "xcit_medium_24_p8_224": {
+        "name": "xcit_medium_24_p8_224",
+        "trace_metadata": {
+            "name": "xcit_medium_24_p8_224",
+            "library": "timm"
+        }
+    },
+    "stable-diffusion-v1-4": {
+        "name": "stable-diffusion-v1-4",
+        "trace_metadata": {
+            "name": "stable-diffusion-v1-4",
+            "group": "CompVis",
+            "library": "diffusers"
+        }
+    },
+    "gemma-2b-it": {
+        "name": "gemma-2b-it",
+        "trace_metadata": {
+            "name": "gemma-2b-it",
+            "group": "google",
+            "library": "transformers"
+        }
+    },
+    "pali-gemma": {
+        "name": "pali-gemma",
+        "trace_metadata": {
+            "name": "paligemma-3b-mix-224",
+            "group": "google",
+            "library": "transformers"
+        }
+    },
+    "phi": {
+        "name": "phi",
+        "trace_metadata": {
+            "name": "Phi-3-mini-128k-instruct",
+            "group": "microsoft",
+            "library": "transformers"
+        }
+    },
+    "AutoencoderKL": {
+        "name": "AutoencoderKL",
+        "trace_metadata": {
+            "name": "stable-diffusion-v1-4-vae",
+            "group": "CompVis",
+            "library": "diffusers"
+        }
+    },
+    "swinv2-transformers": {
+        "name": "swinv2-transformers",
+        "trace_metadata": {
+            "name": "swinv2-tiny-patch4-window8-256",
+            "group": "microsoft",
+            "library": "transformers"
+        }
+    },
+    "CLIP": {
+        "name": "CLIP",
+        "trace_metadata": {
+            "name": "clip-vit-base-patch32",
+            "group": "openai",
+            "library": "transformers"
+        }
+    },
+    "yolo": {
+        "name": "yolo",
+        "trace_metadata": {
+            "name": "yolov8n",
+            "library": "ultralytics"
+        }
+    },
+    "yolov10s": {
+        "name": "yolov10s",
+        "trace_metadata": {
+            "name": "yolov10s",
+            "group": "jameslahm",
+            "library": "ultralytics"
+        }
+    },
+    "yolos-small": {
+        "name": "yolos-small",
+        "trace_metadata": {
+            "name": "yolos-small",
+            "group": "hustvl",
+            "library": "transformers"
+        }
+    },
+    "dinov2": {
+        "name": "dinov2",
+        "trace_metadata": {
+            "name": "dinov2-base",
+            "group": "facebook",
+            "library": "transformers"
+        }
+    },
+    "stylegan-2": {
+        "name": "stylegan-2",
+        "trace_metadata": {
+            "name": "stylegan2",
+            "group": "lucidrains",
+            "library": "stylegan2_pytorch"
+        }
+    },
+    "gigagan": {
+        "name": "gigagan",
+        "trace_metadata": {
+            "name": "GigaGAN",
+            "group": "lucidrains",
+            "library": "gigagan_pytorch"
+        }
+    },
+    "maskrcnn_resnet50_fpn": {
+        "name": "maskrcnn_resnet50_fpn",
+        "trace_metadata": {
+            "name": "maskrcnn_resnet50_fpn",
+            "library": "torchvision"
+        }
+    },
+    "sd-1.5-runway": {
+        "name": "sd-1.5-runway",
+        "trace_metadata": {
+            "name": "stable-diffusion-v1-5",
+            "group": "runwayml",
+            "library": "diffusers"
+        }
+    },
+    "sd-1.5-runway-ControlNet": {
+        "name": "sd-1.5-runway-ControlNet",
+        "trace_metadata": {
+            "name": "stable-diffusion-v1-5 w/ controlnet-canny",
+            "group": "runwayml",
+            "library": "diffusers"
+        }
+    },
+    "stable-cascade-prior": {
+        "name": "stable-cascade-prior",
+        "trace_metadata": {
+            "name": "stable-cascade-prior",
+            "group": "stabilityai",
+            "library": "diffusers"
+        }
+    },
+    "stable-cascade-decoder": {
+        "name": "stable-cascade-decoder",
+        "trace_metadata": {
+            "name": "stable-cascade-decoder",
+            "group": "stabilityai",
+            "library": "diffusers"
+        }
+    },
+    "sd-xl-base": {
+        "name": "sd-xl-base",
+        "trace_metadata": {
+            "name": "stable-diffusion-xl-base-1.0",
+            "group": "stabilityai",
+            "library": "diffusers"
+        }
+    },
+    "sd-xl-refiner": {
+        "name": "sd-xl-refiner",
+        "trace_metadata": {
+            "name": "stable-diffusion-xl-refiner-1.0",
+            "group": "stabilityai",
+            "library": "diffusers"
+        }
+    },
+    "sdedit": {
+        "name": "sdedit",
+        "trace_metadata": null
+    },
+    "style-aligned": {
+        "name": "style-aligned",
+        "trace_metadata": null
+    },
+    "sdxl-flash": {
+        "name": "sdxl-flash",
+        "trace_metadata": {
+            "name": "sdxl-flash",
+            "group": "sd-community",
+            "library": "diffusers"
+        }
+    },
+    "sd-turbo": {
+        "name": "sd-turbo",
+        "trace_metadata": {
+            "name": "sd-turbo",
+            "group": "stabilityai",
+            "library": "diffusers"
+        }
+    },
+    "sd-turbo-img2img": {
+        "name": "sd-turbo-img2img",
+        "trace_metadata": {
+            "name": "sdxl-turbo-Image2Image",
+            "group": "stabilityai",
+            "library": "diffusers"
+        }
+    },
+    "dpt-large": {
+        "name": "dpt-large",
+        "trace_metadata": {
+            "name": "dpt-large",
+            "group": "Intel",
+            "library": "transformers"
+        }
+    },
+    "dpt-hybrid-midas": {
+        "name": "dpt-hybrid-midas",
+        "trace_metadata": {
+            "name": "dpt-hybrid-midas",
+            "group": "Intel",
+            "library": "transformers"
+        }
+    },
+    "GLPN": {
+        "name": "GLPN",
+        "trace_metadata": {
+            "name": "glpn-kitti",
+            "group": "vinvino02",
+            "library": "transformers"
+        }
+    },
+    "hiera-tiny": {
+        "name": "hiera-tiny",
+        "trace_metadata": {
+            "name": "hiera-tiny-224-hf",
+            "group": "facebook",
+            "library": "transformers"
+        }
+    },
+    "depth-anything-v2": {
+        "name": "depth-anything-v2",
+        "trace_metadata": {
+            "name": "Depth-Anything-V2-Small-hf",
+            "group": "depth-anything",
+            "library": "transformers"
+        }
+    },
+    "depth-anything-large-hf": {
+        "name": "depth-anything-large-hf",
+        "trace_metadata": {
+            "name": "depth-anything-large-hf",
+            "group": "depth-anything",
+            "library": "transformers"
+        }
+    },
+    "detr-resnet-50": {
+        "name": "detr-resnet-50",
+        "trace_metadata": {
+            "name": "detr-resnet-50",
+            "group": "facebook",
+            "library": "transformers"
+        }
+    },
+    "segformer": {
+        "name": "segformer",
+        "trace_metadata": {
+            "name": "segformer-b0-finetuned-ade-512-512",
+            "group": "nvidia",
+            "library": "transformers"
+        }
+    },
+    "maskformer-swin-tiny-coco": {
+        "name": "maskformer-swin-tiny-coco",
+        "trace_metadata": {
+            "name": "maskformer-swin-tiny-coco",
+            "group": "facebook",
+            "library": "transformers"
+        }
+    },
+    "perceiver": {
+        "name": "perceiver",
+        "trace_metadata": {
+            "name": "vision-perceiver-conv",
+            "group": "deepmind",
+            "library": "transformers"
+        }
+    },
+    "t5": {
+        "name": "t5",
+        "trace_metadata": {
+            "name": "t5-base",
+            "group": "google",
+            "library": "transformers"
+        }
+    },
+    "sd3": {
+        "name": "sd3",
+        "trace_metadata": {
+            "name": "stable-diffusion-3-medium-diffusers (sd3)",
+            "group": "stabilityai",
+            "library": "transformers"
+        }
+    },
+    "mask2former": {
+        "name": "mask2former",
+        "trace_metadata": {
+            "name": "mask2former-swin-small-coco-instance",
+            "group": "facebook",
+            "library": "transformers"
+        }
+    },
+    "mask2former-swin-large-ade-semantic": {
+        "name": "mask2former-swin-large-ade-semantic",
+        "trace_metadata": {
+            "name": "mask2former-swin-large-ade-semantic",
+            "group": "facebook",
+            "library": "transformers"
+        }
+    },
+    "marigold": {
+        "name": "marigold",
+        "trace_metadata": {
+            "name": "marigold-depth-lcm-v1-0",
+            "group": "prs-eth",
+            "library": "diffusers"
+        }
+    },
+    "rtdetr_r50vd": {
+        "name": "rtdetr_r50vd",
+        "trace_metadata": {
+            "name": "rtdetr_r50vd",
+            "group": "PekingU",
+            "library": "transformers"
+        }
+    },
+    "upernet-convnext-tiny": {
+        "name": "upernet-convnext-tiny",
+        "trace_metadata": {
+            "name": "upernet-convnext-tiny",
+            "group": "openmmlab",
+            "library": "transformers"
+        }
+    },
+    "vit-msn-small": {
+        "name": "vit-msn-small",
+        "trace_metadata": {
+            "name": "vit-msn-small",
+            "group": "facebook",
+            "library": "transformers"
+        }
+    },
+    "SDXL-Lightening-1step": {
+        "name": "SDXL-Lightening-1step",
+        "trace_metadata": {
+            "name": "SDXL-Lightning",
+            "group": "ByteDance",
+            "library": "diffusers"
+        }
+    },
+    "RMBG-1.4": {
+        "name": "RMBG-1.4",
+        "trace_metadata": {
+            "name": "RMBG-1.4",
+            "group": "briaai",
+            "library": "transformers"
+        }
+    }
 }

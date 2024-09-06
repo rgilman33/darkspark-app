@@ -156,7 +156,7 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
             const elapsedTime = rightClickEndTime - rightClickStartTime; // Calculate the elapsed time
             let elapsedDist = Math.sqrt((rightClickMouseLocation.x - event.clientX)**2 + (rightClickMouseLocation.y - event.clientY)**2)
             console.log("elapsedTime", elapsedTime, "elapsedDist", elapsedDist)
-            if ((elapsedTime < 220) && (elapsedDist<10)) { // Check if the time elapsed is less than threshold
+            if ((elapsedTime < 220) && (elapsedDist<6)) { // Check if the time elapsed is less than threshold
                 console.log(hoveredObject)
                 setContextMenu(
                   contextMenu === null ? { mouseX: event.clientX - 2, mouseY: event.clientY - 4, "current_op":hovered_op } : null
@@ -745,7 +745,9 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
                 scene.add(minimap_window)
 
                 // set camera to default
-                update_main_camera_position(0, 0)
+                let CAMERA_DEFAULT_X = 12
+                let CAMERA_DEFAULT_Z = 4
+                update_main_camera_position(CAMERA_DEFAULT_X, CAMERA_DEFAULT_Z)
                 let default_zoom = 20
                 camera.zoom = default_zoom
                 camera.updateProjectionMatrix()
@@ -874,7 +876,7 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
         "row_counter", "draw_order_row",
         "mod_outputs", "input_group_ix", "input_group_sub_ix",
         'n_ops', 'depth', 'input_shapes', 'output_shapes', 'is_output_global', 
-        "sparkflow", "params", "incremental_memory_usage", "max_memory_allocated", "latency", "n_params", "mod_inputs", "should_modularize"]
+        "sparkflow", "params", "incremental_memory_usage", "max_memory_allocated", "latency", "n_params", "is_conditioning", "is_conditioning_upstream"]
 
   const render_menu_items = () => {
     if (contextMenu === null) return [<MenuItem></MenuItem>]

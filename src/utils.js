@@ -236,34 +236,30 @@ export function get_edge_pts(n0, n1) {
 // let elbow = {x:elbow_x, y:0, z:n0.y}
 
 export function get_node_color(n) {
-    if (globals.DEBUG){
-        if (n.conditioning_entering_respath) {
-            return new THREE.Color("green")
-        } else if (n.remove_this_aux_output) {
-            return new THREE.Color("orange")
-        } else if (n.is_conditioning_upstream) {
-            return new THREE.Color("aqua")
-        } else if (n.is_conditioning) {
-            return new THREE.Color("blue")
-        } else if (n.is_global_input) {
-            return new THREE.Color("orange")
-        } else if (n.is_input && n.dns.length==0) {
-            return new THREE.Color("black")
-        } else if (n.is_output_global) {
-            return new THREE.Color("purple")
-        } else if (n.is_input) {
-            return new THREE.Color("yellow")
-        } else if (n.is_output) {
-            return new THREE.Color("red")
-        } else if (n.node_type=="mod_out") {
-            return new THREE.Color("pink")
-        } else if (n.node_type=="mod_in") {
-            return new THREE.Color("gold")
-        } else {
-            return _get_node_color_non_debug(n)
-        }
+    if (n.conditioning_entering_respath) {
+        return new THREE.Color("green")
+    } else if (n.remove_this_aux_output) {
+        return new THREE.Color("orange")
+    } else if (n.is_conditioning_upstream) {
+        return new THREE.Color("aqua")
+    } else if (n.is_conditioning) {
+        return new THREE.Color("blue")
+    } else if (n.is_global_input) {
+        return new THREE.Color("orange")
+    } else if (n.is_input && n.dns.length==0) {
+        return new THREE.Color("black")
+    } else if (n.is_output_global) {
+        return new THREE.Color("purple")
+    } else if (n.is_input) {
+        return new THREE.Color("yellow")
+    } else if (n.is_output) {
+        return new THREE.Color("red")
+    } else if (n.node_type=="mod_out") {
+        return new THREE.Color("pink")
+    } else if (n.node_type=="mod_in") {
+        return new THREE.Color("gold")
     } else {
-        return _get_node_color_non_debug(n)
+        return new THREE.Color("grey")
     }
 }
 
@@ -715,8 +711,9 @@ function assign_label_to_op(op) {
 
             } else {
                 let spans = label.element.children
-                spans[0].innerText = op.shape
+                spans[0].innerText = "("+op.shape+")"
                 spans[0].style.display = 'inline'
+                spans[0].style.color = color_lookup["unknown"];
             }
         } else if (["function", "module"].includes(op.node_type)) {
             label.element.style["font-size"] = "12px"
@@ -750,7 +747,7 @@ function assign_label_to_op(op) {
                     }
                 }
                 
-                if ("action_along_dim_type" in op) {
+                if (("action_along_dim_type" in op) && (op.action_along_dim_type!=="unknown")) {
                     text += ("<br>("+op.action_along_dim_type+")")
                 }
 
@@ -769,28 +766,44 @@ function assign_label_to_op(op) {
       console.log("label pool empty")
     }
 }
+function is_uc(char) {
+    return char===char.toUpperCase()
+}
+function is_lc(char) {
+    return char===char.toLowerCase()
+}
 function formatText(text) { // chatGPT
     let formattedText = '';
     let start = 0;
 
     // Helper function to find the natural breakpoint
     function findNaturalBreakpoint(str, start, maxLen) {
-        for (let i = start + 6; i <= start + maxLen; i++) {
-            if (str[i] === '_' || (str[i] && str[i] === str[i].toUpperCase() && str[i - 1] === str[i - 1].toLowerCase())) {
-                return i;
+        let breakpoints = []
+        for (let i = start + 1; i <= start + maxLen; i++) {
+            if (
+                str[i] === '_' || 
+                (str[i+1] && is_uc(str[i]) && is_lc(str[i+1])) ||
+                (!isNaN(str[i - 1]) && isNaN(str[i]))
+                ) {
+                // return i;
+                breakpoints.push(i)
             }
         }
-        return start + maxLen; // Default to the max length if no breakpoint is found
+        if (breakpoints.length>0) {
+            return breakpoints[breakpoints.length-1]
+        } else {
+            return start + maxLen; // Default to the max length if no breakpoint is found
+        }
     }
 
     while (start < text.length) {
-        if (text.length - start <= 12) {
+        if (text.length - start <= 14) {
             // If the remaining text is less than or equal to 12, just append it
             formattedText += text.slice(start);
             break;
         } else {
             // Find a natural breakpoint between the 8th and 12th character
-            let breakPoint = findNaturalBreakpoint(text, start, 12);
+            let breakPoint = findNaturalBreakpoint(text, start, 14);
             formattedText += text.slice(start, breakPoint) + '<br>';
             start = breakPoint;
         }
@@ -823,6 +836,14 @@ function remove_label_from_op_and_return_to_pool(op) {
     }
 }
 
+let interesting_ops = ["matmul", "cat"]
+function is_interesting_op(op) {
+    return (
+        op.n_params>0 ||
+        interesting_ops.includes(op.name)
+        )
+}
+
 function update_nodes_labels() {
     console.log("update nodes labels")
     let [h_width, h_height, cx, cz] = get_main_window_position()
@@ -832,7 +853,7 @@ function update_nodes_labels() {
       let is_onscreen = (op.x > screen_left) && (op.x < screen_right) && (op.y>screen_bottom) && (op.y<screen_top)
     //   let zoomed_enough = (globals.camera.zoom > 22 || (globals.camera.zoom > 18 && (op.node_type=="function" || op.node_type=="module")))
       let zoomed_enough = (globals.camera.zoom > 30 || 
-                            (globals.camera.zoom > 18 && (op.n_params > 0))
+                            (globals.camera.zoom > 15 && is_interesting_op(op))
                             )
       if (is_onscreen && zoomed_enough && op.should_draw) {
         if (!op.active_node_label) {
