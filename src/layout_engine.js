@@ -266,7 +266,19 @@ export default function recompute_layout() {
 
                 // if (dn.uns.length>1) is_same_row = false; // if dn has multiple incoming, one of them has to be different row
             })
+            // let shorter_x_amount = true
+            // let important_ops = ["conv2d", "linear", "max_pool2d", "cat", "mean", "interpolate", 
+            //      "avg_pool2d", "adaptive_avg_pool2d", "adaptive_avg_pool1d", "matmul", "bmm"]
+            // if (important_ops.includes(op_whose_dns_to_nudge.name) || 
+            //     important_ops.includes(op_whose_dns_to_nudge.created_by_fn) ||
+            //     op_whose_dns_to_nudge.node_type=="module") {
+            //     shorter_x_amount = false
+            // }
             let x_amount = is_same_row ? 1 : 2
+            // doesn't work bc in backend have dist of one
+            // if (is_same_row && shorter_x_amount) {
+            //     x_amount = .5
+            // }
             // keeping 2 everywhere else. 
             /////////////////////////
 

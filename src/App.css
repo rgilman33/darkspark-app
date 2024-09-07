@@ -88,6 +88,41 @@ cursor: pointer;
 .sidebar-handle:hover {
   background-color: #bbb;
 }
+
+/* .sidebar { from right side
+  width: 300px;
+  padding: 20px;
+  box-sizing: border-box;
+  background-color: white;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  position: absolute;
+  bottom: 50px;
+  left: 100%;
+  z-index: 1000;
+  border-radius: 8px;
+  transition: left 0.3s ease;
+}
+
+.sidebar.open {
+  left: calc(100% - 300px);
+}
+
+.sidebar-handle {
+  position: absolute;
+  top: 50%;
+  left: -40px;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  background-color: #ccc;
+  border-radius: 8px 0 0 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  z-index: 1001;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+} */
 /* .sidebar {
   width: 250px;
   padding: 20px;
