@@ -183,13 +183,13 @@ const Sidebar = ({ onFilterChange, setDropdownValue, dropdownValue, depthValues,
                 
                 {/* Second Column */}
                 <div style={{ flex: 1, textAlign: 'center' }}>
-                <div style={{ fontSize: '12px', color: 'gray' }}>latency</div>
-                <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{overviewStats.total_latency.toFixed(0)+'ms'}</div>
+                <div style={{ fontSize: '12px', color: 'gray' }}>total time</div>
+                <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{utils.formatLatency(overviewStats.total_latency)}</div>
                 </div>
                 
                 {/* Third Column */}
                 <div style={{ flex: 1, textAlign: 'center' }}>
-                <div style={{ fontSize: '12px', color: 'gray' }}>gpu memory</div>
+                <div style={{ fontSize: '12px', color: 'gray' }}>peak gpu memory</div>
                 <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{utils.formatMemorySize(overviewStats.max_memory_allocated)}</div>
                 </div>
             </div>

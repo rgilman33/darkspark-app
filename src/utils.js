@@ -7,6 +7,7 @@ import { Line2 } from 'three/examples/jsm/lines/Line2';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry';
 
+import pako from 'pako';
 
 ///////////////////////////////
 // globals
@@ -28,6 +29,7 @@ export let globals = {
     SHOW_ACTIVATION_VOLUMES:true,
     is_tweening:false,
     COLLAPSE_ALL_RESHAPE_MODULES:true,
+    scene_bb: {x_max:0, x_min:0, y_max:0, y_min:0}
 }
 export const MINIMAP_OBJECTS_LAYER = 3
 export const ACTVOL_OBJECTS_LAYER = 4
@@ -658,7 +660,7 @@ export function populate_labels_pool() {
     }
 }
 
-let color_lookup = {
+export const dim_color_lookup = {
     "unknown": "grey",
     "features": "rgb(30, 140, 100)",
     "spatial":"rgb(20, 30, 180)",
@@ -696,7 +698,7 @@ function assign_label_to_op(op) {
                 spans[0].style.display = 'inline'
                 op.shape.forEach((s,i) => {
                     let dim_type = op.dim_types[i]
-                    let color = color_lookup[dim_type]
+                    let color = dim_color_lookup[dim_type]
     
                     let span = spans[spans_ix]; spans_ix+= 1
                     span.style.display = 'inline'
@@ -713,7 +715,7 @@ function assign_label_to_op(op) {
                 let spans = label.element.children
                 spans[0].innerText = "("+op.shape+")"
                 spans[0].style.display = 'inline'
-                spans[0].style.color = color_lookup["unknown"];
+                spans[0].style.color = dim_color_lookup["unknown"];
             }
         } else if (["function", "module"].includes(op.node_type)) {
             label.element.style["font-size"] = "12px"
@@ -1112,12 +1114,15 @@ export function get_ns(op, uns_or_dns) {
 // get nodes fns dominate timing
 export function get_downstream_peer_nodes(base_op) {
     let all_dns = get_ns(base_op, "dns")
-    let just_peer_dns = all_dns.filter(dn => dn.parent_op.name==base_op.parent_op.name)
+    // let just_peer_dns = all_dns.filter(dn => dn.parent_op.name==base_op.parent_op.name)
+    // BUG REPORT i am an idiot. check out that filter, what if have same name ??? eg Sequential??? why did i do it that way? 2.5 hr bug.
+    let just_peer_dns = all_dns.filter(dn => dn.parent_op==base_op.parent_op)
     return just_peer_dns
 }
 export function get_upstream_peer_nodes(base_op) {
     let all_uns = get_ns(base_op, "uns")
-    let just_peer_uns = all_uns.filter(un => un.parent_op.name==base_op.parent_op.name)
+    // let just_peer_uns = all_uns.filter(un => un.parent_op.name==base_op.parent_op.name)
+    let just_peer_uns = all_uns.filter(un => un.parent_op==base_op.parent_op)
     return just_peer_uns
 }
 
@@ -1189,6 +1194,95 @@ export function formatMemorySize(numBytes) {
     } else if (numBytes >= ONE_KB) {
         return (numBytes / ONE_KB).toFixed(1) + ' KB';
     } else {
-        return numBytes.toFixed(1) + ' bytes';
+        return Math.round(numBytes) + ' bytes';
     }
 }
+
+export function formatLatency(ms) {
+    if (ms >= 1000) {
+      // If the time is more than a second, format it as seconds with one decimal
+      return (ms / 1000).toFixed(1) + 's';
+    } else if (ms >= 1) {
+      // If the time is more than a millisecond, return in milliseconds
+      return Math.round(ms) + 'ms';
+    } else {
+      // If the time is less than a millisecond, return in microseconds
+      return Math.round(ms * 1000) + 'µs';
+    }
+  }
+  
+export function save_current_state() {
+
+    let properties_to_copy = ["name", "collapsed", "mod_identifier"]
+
+    let expanded_ops = globals.ops_of_visible_planes.map(op => {
+        let copy = {}
+        properties_to_copy.forEach(p => copy[p]=op[p])
+        return copy
+    })
+
+    let trace_name = globals.nn.trace_metadata.name
+
+    let saved_settings = {
+        "name":trace_name,
+        "expanded_ops":expanded_ops
+    }
+    saveCompressedJSON(saved_settings, trace_name)
+}
+
+export function load_saved_settings(nn, saved_settings) {
+    Object.keys(globals.nodes_lookup).forEach(nid => {
+        let op = globals.nodes_lookup[nid]
+        op.collapsed = true
+    })
+
+    nn.collapsed = false // root
+    saved_settings.expanded_ops.forEach(expanded_op => {
+        let mod = globals.modules_lookup_by_identifier[expanded_op.mod_identifier] // root not in there
+        if (mod) {
+            mod.collapsed = false
+        }
+    })
+}
+
+function saveCompressedJSON(jsonObject, trace_name) { // chatgpt
+    let filename = `darkspark_defaults_${trace_name}.json.gz`
+
+    // Step 1: Convert the JSON object to a string
+    const jsonString = JSON.stringify(jsonObject);
+
+    // Step 2: Compress the JSON string using pako.gzip
+    const compressed = pako.gzip(jsonString);
+
+    // Step 3: Create a Blob from the compressed data
+    const blob = new Blob([compressed], { type: 'application/gzip' });
+
+    // Step 4: Create a download link and trigger it
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    document.body.appendChild(link); // Needed for Firefox
+    link.click();
+    document.body.removeChild(link); // Clean up
+}
+
+
+export function saveMinimapAsImage(renderer, camera) {
+    // Render the current scene from the camera's perspective
+    globals.minimap_window_plane.visible = false
+    renderer.render(scene, camera);
+    
+    // Get the data URL of the canvas
+    const imgData = renderer.domElement.toDataURL("image/png");
+  
+    // Create a temporary link element to trigger the download
+    const link = document.createElement('a');
+    link.href = imgData;
+    let trace_name = globals.nn.trace_metadata.name
+    link.download = `darkspark_thumbnail_${trace_name}.png`;
+    link.click();
+
+    globals.minimap_window_plane.visible = true
+    renderer.render(scene, camera);
+
+  }

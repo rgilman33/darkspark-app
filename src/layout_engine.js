@@ -12,7 +12,7 @@ export default function recompute_layout() {
     let nn = globals.nn
     
     ///////////////////////////////////////////
-    // cache prev positions
+    // cache prev positions for use in transitions
     function cache_prev_position(op) {
         // op.prev_pos = {x:op.x, y:op.y}
         op.prev_pos = {x:op.x, y:op.y_unshifted}
@@ -159,7 +159,9 @@ export default function recompute_layout() {
     
     function reset_dims(op) {
         op.x_relative = op.x_relative_original
+        // op.x_relative /= 100 // So can have less dist for unimportant ops. adds to compute_layout time by 12ms -> 30ms for sd1.4 i think maybe
         op.y_relative = op.y_relative_original
+
         op.history_js = []
         op.children.forEach(c => reset_dims(c))
     }
@@ -192,9 +194,13 @@ export default function recompute_layout() {
         // then a costlier pass only for freshies, to allow them to not cling to left, to attach branch where required 
         // freshie pass is possible to use for all inputs, but is almost 100x more costly in terms of latency, i believe bc of all the 
         // frequent bringing forward of branches ie looping through all peers, though this hypths is not tested
+        let P = 0 // 1e6 // don't think we actually need this to be so negative. Trying w zero and works...
+        // TODO this needs attn, better way to fail when things don't work. Below we're setting x_relative to this value, so if
+        // eg 1e6 that puts it way out can't see
+
         op.children.forEach(o => {
             o.x_nudge_traversed = false
-            o.x_relative = -1e6
+            o.x_relative = -P
             o.x_relative_fully_marked = false
         })
 
@@ -210,7 +216,7 @@ export default function recompute_layout() {
         }
 
         ///////////////////
-        // old version
+        // old version. When no orig fns, applies to all except global inputs, none on first level bc those are all global
         function nudge_forward_dns(op_whose_dns_to_nudge) {
             op_whose_dns_to_nudge.x_nudge_traversed = true
 
@@ -225,6 +231,22 @@ export default function recompute_layout() {
 
                 // if (dn.uns.length>1) is_same_row = false; // if dn has multiple incoming, one of them has to be different row
             })
+            let x_amount = is_same_row ? 1 : 2
+
+            // // 
+            // let shorter_x_amount = true
+            // let important_ops = ["conv2d", "linear", "max_pool2d", "cat", "mean", "interpolate", 
+            //      "avg_pool2d", "adaptive_avg_pool2d", "adaptive_avg_pool1d", "matmul", "bmm"]
+            // if (important_ops.includes(op_whose_dns_to_nudge.name) || 
+            //     important_ops.includes(op_whose_dns_to_nudge.created_by_fn) ||
+            //     op_whose_dns_to_nudge.node_type=="module") {
+            //     shorter_x_amount = false
+            // }
+            // if (is_same_row && shorter_x_amount) {
+            //     x_amount = .5
+            // } 
+            // NOTE this works now, but bc of occupancy pegged at ints, not seamless. 
+
             // keeping 2 everywhere else. 
             /////////////////////////
 
@@ -237,7 +259,7 @@ export default function recompute_layout() {
                     // occ uses array, so int for ix. Can undo the round when occ is more flexible TODO NOTE NOTE
                 }
                 if (dn.x_relative <= x_threshold) {
-                    dn.x_relative = x_threshold + (is_same_row ? 1 : 2)
+                    dn.x_relative = x_threshold + x_amount
                     dn.x_relative_fully_marked = true // needed for below, not when used in isolation
                     dn.history_js.push("JS x nudged forward by "+utils.nice_name(op_whose_dns_to_nudge)+" "+x_threshold+" "+dn.x_relative)
                     nudge_forward_dns(dn)
@@ -252,7 +274,7 @@ export default function recompute_layout() {
         ///////////////////
         // new version
         // marking forward then when hitting already marked, shifts entire branch up to meet it, clumps to the right
-        // see backend for full comments, as this is same as there
+        // see backend for full comments, as this is same as there. Only applies to global inputs.
         function mark_next_x_pos(op_whose_dns_to_nudge) {
             let dns = utils.get_downstream_peer_nodes(op_whose_dns_to_nudge, op.children)
 
@@ -266,22 +288,10 @@ export default function recompute_layout() {
 
                 // if (dn.uns.length>1) is_same_row = false; // if dn has multiple incoming, one of them has to be different row
             })
-            // let shorter_x_amount = true
-            // let important_ops = ["conv2d", "linear", "max_pool2d", "cat", "mean", "interpolate", 
-            //      "avg_pool2d", "adaptive_avg_pool2d", "adaptive_avg_pool1d", "matmul", "bmm"]
-            // if (important_ops.includes(op_whose_dns_to_nudge.name) || 
-            //     important_ops.includes(op_whose_dns_to_nudge.created_by_fn) ||
-            //     op_whose_dns_to_nudge.node_type=="module") {
-            //     shorter_x_amount = false
-            // }
             let x_amount = is_same_row ? 1 : 2
-            // doesn't work bc in backend have dist of one
-            // if (is_same_row && shorter_x_amount) {
-            //     x_amount = .5
-            // }
+
             // keeping 2 everywhere else. 
             /////////////////////////
-
 
             dns.forEach(dn => {
                 if (dn.x_relative_fully_marked) {
@@ -314,7 +324,6 @@ export default function recompute_layout() {
         let to_shifts, nodes_in_this_input_group
         input_ops_global.forEach(o => {
             to_shifts = []; nodes_in_this_input_group = [o] // to be filled out in mark_next_x_pos
-            let P = 1e6 
             // when stranded input global op, eg after pruning sd 1.5 we got this, single op, the gets pushed way far over 
             // then way stretched out. Will need to deal w this better
             o.x_relative = -P
@@ -595,15 +604,14 @@ export default function recompute_layout() {
                 }
             })
 
+            //////////////////////////////////
             // move remaining rows up to evade occupancy
-            row_queue.forEach(row => {
-                // if (row.nodes[0].parent_op.name=="UNetMidBlock2DCrossAttn"){
-                //     console.log("row", row)
-                // }
-                let occ = Math.max(...occupancy.slice(row.starts_at_x, row.ends_at_x+1))
-                let new_row_y =  occ+row.pad
+            row_queue.forEach(_row => {
+                // console.log(_row.nodes[0].node_id, _row.nodes[0].name, _row.starts_at_x, _row.ends_at_x)
+                let occ = Math.max(...occupancy.slice(_row.starts_at_x, _row.ends_at_x+1))
+                let new_row_y =  occ+_row.pad
                 
-                let actvols = row.nodes.filter(n=>n.is_activation_volume)
+                let actvols = _row.nodes.filter(n=>n.is_activation_volume)
                 actvols.forEach(o => {
 
                     let actvol_spans = get_act_vol_spans(o.activation_volume_specs)
@@ -614,10 +622,10 @@ export default function recompute_layout() {
                     new_row_y = Math.max(new_row_y, actvol_occ+actvol_spans.y_span_half)
                 })
 
-                if (row.has_been_moved_up_w_expanding_box && row.y_relative>new_row_y) { 
+                if (_row.has_been_moved_up_w_expanding_box && _row.y_relative>new_row_y) { 
                     // if moved up w expanding box and is higher than new value, let it stay. 
                 } else {
-                    set_row_y(row, new_row_y)
+                    set_row_y(_row, new_row_y)
                 }
             })
     
@@ -705,6 +713,8 @@ export default function recompute_layout() {
         // the dimensions of the parent op
         op.w = Math.max(...op.children.map(c => c.x_relative+c.w))
         op.h = Math.max(...op.children.map(c => c.y_relative+c.h))
+
+        console.log("op hw", op.name, op.node_id, op.h, op.w)
     }
     update_op_h_w(nn)
 
@@ -722,8 +732,10 @@ export default function recompute_layout() {
     // debugging
     function random_shift(op) {
         op.y_unshifted = op.y
-        op.y += Math.random()*.001 // WTF this affects display, like need this or sometimes line doesn't display? happened after Line2. Only happens in some cases, after tweens
-        // if (globals.DEBUG) { op.y += Math.random()*.2 }
+        op.y += Math.random()*.02 //.001 // WTF this affects display, like need this or sometimes line doesn't display? happened after Line2. Only happens in some cases, after tweens
+        // NOTE i actually like the look of higher random shift, but would need it to be more autocorrelated so no stepwise jumps. 
+        // more random gives it a handrawn, organic look which i like, almost makes the longer horizontal lines easier to read?
+        if (globals.DEBUG) { op.y += Math.random()*.2 }
         op.children.forEach(c => random_shift(c))
     }
     random_shift(nn)
@@ -761,6 +773,8 @@ export default function recompute_layout() {
     }
     mark_plane_specs(nn)
 
+
+
     //////////////////////////////////
     // set should_draw. Used to hide nodes used for structural layout, eg elbows, inputs, etc, but to show them 
     // when eg debug
@@ -779,31 +793,49 @@ export default function recompute_layout() {
         }
     }
 
-    //////////////////////////////
-    // visible max depth
-    globals.max_depth_visible = 0
-    function set_visible_max_depth(op) {
-      globals.max_depth_visible = Math.max(globals.max_depth_visible, (op.depth ? op.depth : 0))
-        if (!op.collapsed){
-            op.children.forEach(c => set_visible_max_depth(c))
+
+    ///////////////////////
+    // Flatten
+
+    function mark_not_visible(op) {
+        op.is_currently_visible_node = false
+        op.children.forEach(c => mark_not_visible(c))
+    }
+    mark_not_visible(nn)
+    let draw_order = 0
+    
+    globals.ops_of_visible_planes = []
+    globals.ops_of_visible_nodes = []
+    function draw_op(op) {
+        if (op.collapsed) { // Nodes
+            op.draw_order_global = draw_order; draw_order += 1
+            globals.ops_of_visible_nodes.push(op)
+            op.is_currently_visible_node = true
+        } else { // Planes
+            globals.ops_of_visible_planes.push(op)
+        
+            // Op is expanded, draw children
+            op.children.sort((a,b) => {return a.draw_order - b.draw_order})
+            op.children.forEach(c => {
+                draw_op(c)
+            })
         }
     }
-    set_visible_max_depth(nn)
-    console.log("max depth visible", globals.max_depth_visible)
+    nn.children.sort((a,b) => {return a.draw_order - b.draw_order})
+    draw_op(nn)
+
+
 
     //////////////////////////////
     // visible max depth
-    let n_params = []
-    function set_visible_max_n_params(op) {
-        if (op.collapsed) {
-            if (op.n_params != undefined) {
-                n_params.push(op.n_params)
-            }
-        } else {
-            op.children.forEach(c => set_visible_max_n_params(c))
-        }
-    }
-    set_visible_max_n_params(nn)
+    let depths = globals.ops_of_visible_nodes.map(op => (isNaN(op.depth) ? 0 : op.depth))
+    globals.max_depth_visible = Math.max(...depths)
+    console.log("max depth visible", globals.max_depth_visible)
+
+
+    //////////////////////////////
+    // visible max depth
+    let n_params = globals.ops_of_visible_nodes.map(op => op.n_params).filter(op => op)
 
     n_params.sort((a,b)=>a-b)
     let n_params_at_upper_percentile = n_params[parseInt(n_params.length*.95)]
@@ -812,6 +844,23 @@ export default function recompute_layout() {
     console.log("max n_params value visible", globals.max_n_params_visible) 
     // not actually max, capping at 95th percentile so very large outliers don't destroy scale
     // TODO need to ensure scales are now always updating during all transitions
+
+    /////////////////////////////
+    // Set scene min max coords
+    let xs = globals.ops_of_visible_nodes.map(op => op.x)
+    let ys = globals.ops_of_visible_nodes.map(op => op.y)
+    globals.scene_bb = {
+        x_min: Math.min(...xs), 
+        x_max: Math.max(...xs), 
+        y_min: Math.min(...ys),
+        y_max: Math.max(...ys), 
+    }
+    globals.scene_bb.hheight = (globals.scene_bb.y_max - globals.scene_bb.y_min) / 2
+    globals.scene_bb.hwidth = (globals.scene_bb.x_max - globals.scene_bb.x_min) / 2
+    console.log("scene min max coords", globals.scene_bb)
+
+
+
 
     console.timeEnd("compute layout")
 }

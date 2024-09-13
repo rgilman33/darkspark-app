@@ -15,311 +15,293 @@ export function draw_nn() {
     let camera = globals.camera
     let nn = globals.nn
 
-    let draw_order = 0
     let all_tweens = []
 
     let PLANE_OUTLINE_W = .02
 
-    // 
-    function mark_not_visible(op) {
-        op.is_currently_visible_node = false
-        op.children.forEach(c => mark_not_visible(c))
-    }
-    mark_not_visible(nn)
+    ///////////////////////////
+    
+    // Update activation volumes that have become tensor squares and vice versa 
+    globals.ops_of_visible_nodes.forEach(op => {
 
-    globals.ops_of_visible_planes = []
-    globals.ops_of_visible_nodes = []
-    function remove_tensor_square_bc_now_is_actvol(op){
-        if (op.collapsed) {
-            if (op.is_activation_volume && op.tensor_node_type=="standard_node" && op.mesh != undefined) {
-                // wasn't an actvol before but is now
-                // note we're grabbing position from mesh object itself, which we don't normally do
-                let prev_pos = {x: op.mesh.position.x, y:op.mesh.position.y, z:op.mesh.position.z} // TODO this is now cached, use that one instead
-                utils.remove_sphere(op)
+        if (op.is_activation_volume && op.tensor_node_type=="standard_node" && op.mesh != undefined) {
+            // wasn't an actvol before but is now
+            // note we're grabbing position from mesh object itself, which we don't normally do
+            let prev_pos = {x: op.mesh.position.x, y:op.mesh.position.y, z:op.mesh.position.z} // TODO this is now cached, use that one instead
+            utils.remove_sphere(op)
 
-                // init actvol at location of prev square, tween to full scale
-                let node_mesh = utils.get_activation_volume(op, op.activation_volume_specs)
-                op.tensor_node_type="act_vol"
+            // init actvol at location of prev square, tween to full scale
+            let node_mesh = utils.get_activation_volume(op, op.activation_volume_specs)
+            op.tensor_node_type="act_vol"
 
-                node_mesh.position.x = prev_pos.x
-                node_mesh.position.y = prev_pos.y
-                node_mesh.position.z = prev_pos.z
+            node_mesh.position.x = prev_pos.x
+            node_mesh.position.y = prev_pos.y
+            node_mesh.position.z = prev_pos.z
 
-                let target_scale = {x:node_mesh.scale.x, y:node_mesh.scale.y, z:node_mesh.scale.z}
-                node_mesh.scale.x = 0
-                node_mesh.scale.y = 0
-                node_mesh.scale.z = 0
+            let target_scale = {x:node_mesh.scale.x, y:node_mesh.scale.y, z:node_mesh.scale.z}
+            node_mesh.scale.x = 0
+            node_mesh.scale.y = 0
+            node_mesh.scale.z = 0
 
-                scene.add(node_mesh)
-                op.mesh = node_mesh
+            scene.add(node_mesh)
+            op.mesh = node_mesh
 
-                all_tweens.push(new TWEEN.Tween(node_mesh.scale)
-                    .to(target_scale, TWEEN_MS) 
-                    .easing(TWEEN_EASE)
-                    .onComplete(() => {
-                        // op.node_label.element.innerText = orig_label
-                    }))
+            all_tweens.push(new TWEEN.Tween(node_mesh.scale)
+                .to(target_scale, TWEEN_MS) 
+                .easing(TWEEN_EASE)
+                .onComplete(() => {
+                    // op.node_label.element.innerText = orig_label
+                }))
 
-            } else if (!op.is_activation_volume && op.tensor_node_type=="act_vol" && op.mesh != undefined) {
-                // was prev an actvol but now should be simple square
+        } else if (!op.is_activation_volume && op.tensor_node_type=="act_vol" && op.mesh != undefined) {
+            // was prev an actvol but now should be simple square
 
-                // Keeping the mesh means it will be tweened into new position in below functionality.
-                // we're doing a scale to zero transition here for visual effect, then swapping for tensor square once actvol is gone.
-                // the actvol will be the mesh that rides the position transition to new location (set below), while also shrinking (set here)
-                all_tweens.push(new TWEEN.Tween(op.mesh.scale)
-                    .to({x:0, y:0, z:0}, TWEEN_MS) 
-                    .easing(TWEEN_EASE)
-                    .onComplete(() => {
-                        
-                        utils.remove_sphere(op)
+            // Keeping the mesh means it will be tweened into new position in below functionality.
+            // we're doing a scale to zero transition here for visual effect, then swapping for tensor square once actvol is gone.
+            // the actvol will be the mesh that rides the position transition to new location (set below), while also shrinking (set here)
+            all_tweens.push(new TWEEN.Tween(op.mesh.scale)
+                .to({x:0, y:0, z:0}, TWEEN_MS) 
+                .easing(TWEEN_EASE)
+                .onComplete(() => {
+                    
+                    utils.remove_sphere(op)
 
-                        let node_mesh = get_sphere_group(op)
-                        op.tensor_node_type="standard_node"
-        
-                        node_mesh.position.x = op.x
-                        node_mesh.position.z = op.y
+                    let node_mesh = get_sphere_group(op)
+                    op.tensor_node_type="standard_node"
+    
+                    node_mesh.position.x = op.x
+                    node_mesh.position.z = op.y
 
-                        scene.add(node_mesh)
-                        op.mesh = node_mesh
-                    }))
+                    scene.add(node_mesh)
+                    op.mesh = node_mesh
+                }))
 
-            }
-        } else {
-            op.children.forEach(c=>remove_tensor_square_bc_now_is_actvol(c))
         }
-    }
-    remove_tensor_square_bc_now_is_actvol(nn)
-    function draw_op(op) {
-        if (op.collapsed) { // Nodes
-            if (op.should_draw) { // extraneous nodes get no mesh at all
-                if (op.mesh == undefined) { // if newly appearing node, create the mesh at the position
-                    let sphere
-                    if (op.is_activation_volume){
-                        sphere = utils.get_activation_volume(op, op.activation_volume_specs)
-                        op.tensor_node_type="act_vol"
-                        // sphere.position.x -= (op.activation_volume_specs.depth/2)
-                    } else {
-                        sphere = get_sphere_group(op)
-                        op.tensor_node_type="standard_node"
-                    }
+    })
 
-                    if (op.originating_position == undefined) { // first init, directly draw at position 
+    ///////////////////////////
+    // Draw or shift nodes
+    globals.ops_of_visible_nodes.forEach(op => {
 
-                        sphere.position.x = op.x
-                        sphere.position.z = op.y
+        if (op.should_draw) { // extraneous nodes get no mesh at all
+            if (op.mesh == undefined) { // if newly appearing node, create the mesh at the position
+                let sphere
+                if (op.is_activation_volume){
+                    sphere = utils.get_activation_volume(op, op.activation_volume_specs)
+                    op.tensor_node_type="act_vol"
+                    // sphere.position.x -= (op.activation_volume_specs.depth/2)
+                } else {
+                    sphere = get_sphere_group(op)
+                    op.tensor_node_type="standard_node"
+                }
 
-                        // gently tween in the node as the plane is collapsing
-                        if (op.is_in_process_of_collapsing) {
+                if (op.originating_position == undefined) { // first init, directly draw at position 
 
-                            let target_scale = {x:sphere.scale.x, y:sphere.scale.y, z:sphere.scale.z}
-                            sphere.scale.x = 0; sphere.scale.y = 0; sphere.scale.z = 0
-                            all_tweens.push(new TWEEN.Tween(sphere.scale)
-                                .to(target_scale, TWEEN_MS) 
+                    sphere.position.x = op.x
+                    sphere.position.z = op.y
+
+                    // gently tween in the node as the plane is collapsing
+                    if (op.is_in_process_of_collapsing) {
+
+                        let target_scale = {x:sphere.scale.x, y:sphere.scale.y, z:sphere.scale.z}
+                        sphere.scale.x = 0; sphere.scale.y = 0; sphere.scale.z = 0
+                        all_tweens.push(new TWEEN.Tween(sphere.scale)
+                            .to(target_scale, TWEEN_MS) 
+                            .easing(TWEEN_EASE)
+                            .onComplete(() => {
+                                // op.node_label.element.innerText = orig_label
+                            }))
+                        
+                        // when collapsing multiple planes, need to also tween the expanding sphere from prev plane location.
+                        // when single plane collapsing this doesn't matter bc collapsing into top left corner
+                        if (op.plane_was_at_this_position !== undefined) {
+                            let prev_pos = op.plane_was_at_this_position
+                            let target_pos = {x:sphere.position.x, y:sphere.position.y, z:sphere.position.z}
+                            sphere.position.x = prev_pos.x; sphere.position.y = prev_pos.y; sphere.position.z = prev_pos.z
+
+                            all_tweens.push(new TWEEN.Tween(sphere.position)
+                                .to(target_pos, TWEEN_MS) 
                                 .easing(TWEEN_EASE)
                                 .onComplete(() => {
                                     // op.node_label.element.innerText = orig_label
                                 }))
-                            
-                            // when collapsing multiple planes, need to also tween the expanding sphere from prev plane location.
-                            // when single plane collapsing this doesn't matter bc collapsing into top left corner
-                            if (op.plane_was_at_this_position !== undefined) {
-                                let prev_pos = op.plane_was_at_this_position
-                                let target_pos = {x:sphere.position.x, y:sphere.position.y, z:sphere.position.z}
-                                sphere.position.x = prev_pos.x; sphere.position.y = prev_pos.y; sphere.position.z = prev_pos.z
-    
-                                all_tweens.push(new TWEEN.Tween(sphere.position)
-                                    .to(target_pos, TWEEN_MS) 
-                                    .easing(TWEEN_EASE)
-                                    .onComplete(() => {
-                                        // op.node_label.element.innerText = orig_label
-                                    }))
-                            }
-
                         }
-                    } else { // from expanding op
-                        sphere.position.x = op.originating_position.x // init at expanding op position, then transition to new position
-                        sphere.position.y = op.originating_position.y
-                        sphere.position.z = op.originating_position.z
 
-                        if (op.is_activation_volume){
-                            let target_scale = {x:sphere.scale.x, y:sphere.scale.y, z:sphere.scale.z}
-                            sphere.scale.x = 0
-                            sphere.scale.y = 0
-                            sphere.scale.z = 0
-                            all_tweens.push(new TWEEN.Tween(sphere.scale)
-                                .to(target_scale, TWEEN_MS) 
-                                .easing(TWEEN_EASE))
-                        }
-                        
-
-                        all_tweens.push(new TWEEN.Tween(sphere.position)
-                            .to({x:op.x, y:0, z:op.y}, TWEEN_MS) 
-                            .easing(TWEEN_EASE))
-                            
                     }
-                    scene.add(sphere);
-                    op.mesh = sphere
-                } else { // sphere exists, transition to new position
-                    all_tweens.push(new TWEEN.Tween(op.mesh.position)
-                            .to({x:op.x, y:0, z:op.y}, TWEEN_MS) 
+                } else { // from expanding op
+                    sphere.position.x = op.originating_position.x // init at expanding op position, then transition to new position
+                    sphere.position.y = op.originating_position.y
+                    sphere.position.z = op.originating_position.z
+
+                    if (op.is_activation_volume){
+                        let target_scale = {x:sphere.scale.x, y:sphere.scale.y, z:sphere.scale.z}
+                        sphere.scale.x = 0
+                        sphere.scale.y = 0
+                        sphere.scale.z = 0
+                        all_tweens.push(new TWEEN.Tween(sphere.scale)
+                            .to(target_scale, TWEEN_MS) 
                             .easing(TWEEN_EASE))
-
-                    // // globals max n_params visible may have changed, so update sphere
-                    // let new_scale = utils.get_sphere_scale(op)
-                    // if (!op.is_activation_volume && )
-                    // console.log(.scale, new_scale)
-                    // // all_tweens.push(new TWEEN.Tween(op.mesh.scale)
-                    // //         .to({x:new_scale, y:new_scale, z:new_scale}, TWEEN_MS) 
-                    // //         .easing(TWEEN_EASE))
-
-                }
-            }
-            op.draw_order_global = draw_order; draw_order += 1
-            globals.ops_of_visible_nodes.push(op)
-            op.is_currently_visible_node = true
-        } else { // Planes
-            globals.ops_of_visible_planes.push(op)
-            ////////////////////////////////////
-            // Draw or shift plane
-            if (op.expanded_plane_mesh == undefined) { // new planes, make for first time
-                const geometry = new THREE.PlaneGeometry(1, 1, 1, 1); // Width, height, and optional segment counts
-                let color = utils.get_plane_color(op)
-                const material = new THREE.MeshBasicMaterial({color: color})
-                let plane = new THREE.Mesh(geometry, material);
-                plane.layers.set(CLICKABLE_LAYER)
-                plane.rotation.x = -Math.PI/2
-
-                const background_geometry = new THREE.PlaneGeometry(1, 1, 1, 1); // Width, height, and optional segment counts
-                const background_material = new THREE.MeshBasicMaterial({color: plane_outline_color})
-                let plane_background = new THREE.Mesh(background_geometry, background_material);
-                plane_background.rotation.x = -Math.PI/2
-                plane_background.layers.set(CLICKABLE_LAYER)
-
-                if (op.name=="Root") {
-                    plane.visible = false
-                    plane_background.visible = false
-                }
-
-                let [h,w,target_pos] = utils.get_plane_specs(op)
-                let BACKGROUND_PLANE_SHIFT_BACK = .01
-                if (op.originating_position == undefined) { // first init, draw directly
-
-                    plane.scale.x = w; plane.scale.y = h; plane.scale.z = 1
-                    plane.position.x = target_pos.x; plane.position.z = target_pos.z; plane.position.y = target_pos.y
-
-                    plane_background.scale.x = w + PLANE_OUTLINE_W
-                    plane_background.scale.y = h + PLANE_OUTLINE_W
-                    plane_background.scale.z = 1
-                    plane_background.position.x = target_pos.x
-                    plane_background.position.z = target_pos.z 
-                    plane_background.position.y = target_pos.y -BACKGROUND_PLANE_SHIFT_BACK
-
-                } else { 
-                    // from expanding op. Init at expanding op position, then transition to new position
-                    // plane
-                    plane.position.x = op.originating_position.x
-                    plane.position.y = op.originating_position.y
-                    plane.position.z = op.originating_position.z
-
-                    plane.scale.x = 0; plane.scale.y = 0; plane.scale.z = 1
-
-                    all_tweens.push(new TWEEN.Tween(plane.position)
-                        .to(target_pos, TWEEN_MS) 
-                        .easing(TWEEN_EASE))
-
-                    all_tweens.push(new TWEEN.Tween(plane.scale)
-                        .to({x:w, y:h, z:1}, TWEEN_MS) 
-                        .easing(TWEEN_EASE))
-
-                    // background plane
-                    plane_background.position.x = op.originating_position.x
-                    plane_background.position.y = op.originating_position.y
-                    plane_background.position.z = op.originating_position.z
-
-                    plane_background.scale.x = 0; plane_background.scale.y = 0; plane_background.scale.z = 1
-
-                    all_tweens.push(new TWEEN.Tween(plane_background.position)
-                        .to({x:target_pos.x, y:target_pos.y-BACKGROUND_PLANE_SHIFT_BACK, z:target_pos.z}, TWEEN_MS) 
-                        .easing(TWEEN_EASE))
-
-                    all_tweens.push(new TWEEN.Tween(plane_background.scale)
-                        .to({x:w + PLANE_OUTLINE_W, y:h + PLANE_OUTLINE_W, z:1}, TWEEN_MS) 
-                        .easing(TWEEN_EASE))
-                }
-                
-                plane.expanded_op = op
-                scene.add(plane);
-
-                plane_background.expanded_op = op
-                scene.add(plane_background)
-
-
-                let group_label = utils.get_group_label(op)
-                group_label.position.set(target_pos.x + w/2, target_pos.y, target_pos.z + h/2);
-                group_label.center.set(1, 1);
-
-                // not adding label until plane is fully expanded
-                setTimeout(() => {
-                    if (!(op.name=="Root")) {
-                        scene.add(group_label)
                     }
-                }, TWEEN_MS);
-
-                op.expanded_plane_mesh = plane
-                op.expanded_plane_background_mesh = plane_background
-                op.expanded_plane_label = group_label
-            } else { // transition existing planes
-                let plane = op.expanded_plane_mesh
-                let plane_background = op.expanded_plane_background_mesh
-                let [h,w,target_pos] = utils.get_plane_specs(op)
-
-                // Foreground plane
-                // scale
-                all_tweens.push(new TWEEN.Tween(plane.scale)
-                    .to({x:w,y:h,z:1}, TWEEN_MS)
-                    .easing(TWEEN_EASE))
-
-                // location
-                all_tweens.push(new TWEEN.Tween(plane.position)
-                    .to(target_pos, TWEEN_MS)
-                    .easing(TWEEN_EASE))
-                
-                // Background plane
-                // scale
-                all_tweens.push(new TWEEN.Tween(plane_background.scale)
-                    .to({x:w+PLANE_OUTLINE_W,y:h+PLANE_OUTLINE_W,z:1}, TWEEN_MS)
-                    .easing(TWEEN_EASE))
-                // location
-                all_tweens.push(new TWEEN.Tween(plane_background.position)
-                    .to({x:target_pos.x, y:target_pos.y-.01, z:target_pos.z}, TWEEN_MS)
-                    .easing(TWEEN_EASE))
-
                     
-                plane.material.color = utils.get_plane_color(op) // depth changes scale
 
-                // label location
-                let group_label = op.expanded_plane_label
-                let pos = target_pos
-                // group_label.position.set(pos.x + w/2, pos.y, pos.z + h/2)
-                all_tweens.push(new TWEEN.Tween(group_label.position)
-                    .to({x:pos.x + w/2, y:pos.y, z:pos.z + h/2}, TWEEN_MS)
-                    .easing(TWEEN_EASE))
+                    all_tweens.push(new TWEEN.Tween(sphere.position)
+                        .to({x:op.x, y:0, z:op.y}, TWEEN_MS) 
+                        .easing(TWEEN_EASE))
+                        
+                }
+                scene.add(sphere);
+                op.mesh = sphere
+            } else { // sphere exists, transition to new position
+                all_tweens.push(new TWEEN.Tween(op.mesh.position)
+                        .to({x:op.x, y:0, z:op.y}, TWEEN_MS) 
+                        .easing(TWEEN_EASE))
+
+                // // globals max n_params visible may have changed, so update sphere
+                // let new_scale = utils.get_sphere_scale(op)
+                // if (!op.is_activation_volume && )
+                // console.log(.scale, new_scale)
+                // // all_tweens.push(new TWEEN.Tween(op.mesh.scale)
+                // //         .to({x:new_scale, y:new_scale, z:new_scale}, TWEEN_MS) 
+                // //         .easing(TWEEN_EASE))
+
+            }
+        }
+    })
+    
+    ///////////////////////////
+    // draw or shift planes
+    globals.ops_of_visible_planes.forEach(op => {
+
+        if (op.expanded_plane_mesh == undefined) { // new planes, make for first time
+            const geometry = new THREE.PlaneGeometry(1, 1, 1, 1); // Width, height, and optional segment counts
+            let color = utils.get_plane_color(op)
+            const material = new THREE.MeshBasicMaterial({color: color})
+            let plane = new THREE.Mesh(geometry, material);
+            plane.layers.set(CLICKABLE_LAYER)
+            plane.rotation.x = -Math.PI/2
+
+            const background_geometry = new THREE.PlaneGeometry(1, 1, 1, 1); // Width, height, and optional segment counts
+            const background_material = new THREE.MeshBasicMaterial({color: plane_outline_color})
+            let plane_background = new THREE.Mesh(background_geometry, background_material);
+            plane_background.rotation.x = -Math.PI/2
+            plane_background.layers.set(CLICKABLE_LAYER)
+
+            if (op.name=="Root") {
+                plane.visible = false
+                plane_background.visible = false
             }
 
-            // If expanding op, there will be a sphere to remove
-            if (op.mesh != undefined) { utils.remove_sphere(op) }
+            let [h,w,target_pos] = utils.get_plane_specs(op)
+            let BACKGROUND_PLANE_SHIFT_BACK = .01
+            if (op.originating_position == undefined) { // first init, draw directly
+
+                plane.scale.x = w; plane.scale.y = h; plane.scale.z = 1
+                plane.position.x = target_pos.x; plane.position.z = target_pos.z; plane.position.y = target_pos.y
+
+                plane_background.scale.x = w + PLANE_OUTLINE_W
+                plane_background.scale.y = h + PLANE_OUTLINE_W
+                plane_background.scale.z = 1
+                plane_background.position.x = target_pos.x
+                plane_background.position.z = target_pos.z 
+                plane_background.position.y = target_pos.y -BACKGROUND_PLANE_SHIFT_BACK
+
+            } else { 
+                // from expanding op. Init at expanding op position, then transition to new position
+                // plane
+                plane.position.x = op.originating_position.x
+                plane.position.y = op.originating_position.y
+                plane.position.z = op.originating_position.z
+
+                plane.scale.x = 0; plane.scale.y = 0; plane.scale.z = 1
+
+                all_tweens.push(new TWEEN.Tween(plane.position)
+                    .to(target_pos, TWEEN_MS) 
+                    .easing(TWEEN_EASE))
+
+                all_tweens.push(new TWEEN.Tween(plane.scale)
+                    .to({x:w, y:h, z:1}, TWEEN_MS) 
+                    .easing(TWEEN_EASE))
+
+                // background plane
+                plane_background.position.x = op.originating_position.x
+                plane_background.position.y = op.originating_position.y
+                plane_background.position.z = op.originating_position.z
+
+                plane_background.scale.x = 0; plane_background.scale.y = 0; plane_background.scale.z = 1
+
+                all_tweens.push(new TWEEN.Tween(plane_background.position)
+                    .to({x:target_pos.x, y:target_pos.y-BACKGROUND_PLANE_SHIFT_BACK, z:target_pos.z}, TWEEN_MS) 
+                    .easing(TWEEN_EASE))
+
+                all_tweens.push(new TWEEN.Tween(plane_background.scale)
+                    .to({x:w + PLANE_OUTLINE_W, y:h + PLANE_OUTLINE_W, z:1}, TWEEN_MS) 
+                    .easing(TWEEN_EASE))
+            }
+            
+            plane.expanded_op = op
+            scene.add(plane);
+
+            plane_background.expanded_op = op
+            scene.add(plane_background)
 
 
-            ////////////////////////////////////
-            // Op is expanded, draw children
-            op.children.sort((a,b) => {return a.draw_order - b.draw_order})
-            op.children.forEach(c => {
-                draw_op(c)
-            })
+            let group_label = utils.get_group_label(op)
+            group_label.position.set(target_pos.x + w/2, target_pos.y, target_pos.z + h/2);
+            group_label.center.set(1, 1);
+
+            // not adding label until plane is fully expanded
+            setTimeout(() => {
+                if (!(op.name=="Root")) {
+                    scene.add(group_label)
+                }
+            }, TWEEN_MS);
+
+            op.expanded_plane_mesh = plane
+            op.expanded_plane_background_mesh = plane_background
+            op.expanded_plane_label = group_label
+        } else { // transition existing planes
+            let plane = op.expanded_plane_mesh
+            let plane_background = op.expanded_plane_background_mesh
+            let [h,w,target_pos] = utils.get_plane_specs(op)
+
+            // Foreground plane
+            // scale
+            all_tweens.push(new TWEEN.Tween(plane.scale)
+                .to({x:w,y:h,z:1}, TWEEN_MS)
+                .easing(TWEEN_EASE))
+
+            // location
+            all_tweens.push(new TWEEN.Tween(plane.position)
+                .to(target_pos, TWEEN_MS)
+                .easing(TWEEN_EASE))
+            
+            // Background plane
+            // scale
+            all_tweens.push(new TWEEN.Tween(plane_background.scale)
+                .to({x:w+PLANE_OUTLINE_W,y:h+PLANE_OUTLINE_W,z:1}, TWEEN_MS)
+                .easing(TWEEN_EASE))
+            // location
+            all_tweens.push(new TWEEN.Tween(plane_background.position)
+                .to({x:target_pos.x, y:target_pos.y-.01, z:target_pos.z}, TWEEN_MS)
+                .easing(TWEEN_EASE))
+
+                
+            plane.material.color = utils.get_plane_color(op) // depth changes scale
+
+            // label location
+            let group_label = op.expanded_plane_label
+            let pos = target_pos
+            // group_label.position.set(pos.x + w/2, pos.y, pos.z + h/2)
+            all_tweens.push(new TWEEN.Tween(group_label.position)
+                .to({x:pos.x + w/2, y:pos.y, z:pos.z + h/2}, TWEEN_MS)
+                .easing(TWEEN_EASE))
         }
-    }
-    nn.children.sort((a,b) => {return a.draw_order - b.draw_order})
-    draw_op(nn)
+
+        // If expanding op, there will be a sphere to remove
+        if (op.mesh != undefined) { utils.remove_sphere(op) }
+
+    })
+
 
     ////////////////// Simple by op type
     let tensor_ops = ["reshape*", "cat", "__getitem__"]

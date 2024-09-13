@@ -25,6 +25,7 @@ minimap_window.layers.set(utils.MINIMAP_OBJECTS_LAYER)
 minimap_window.rotation.x = -Math.PI/2
 let minimap_window_is_dragging = false
 
+globals.minimap_window_plane = minimap_window
 
 const MINIMAP_CAMERA_HEIGHT = 110
 const MAIN_CAMERA_HEIGHT = 100
@@ -129,16 +130,34 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
     // window.addEventListener( 'click', singleClick );
     window.addEventListener('mousemove', onMouseMove, false);
     
+    // // Add an event listener for the 'keydown' event
+    // window.addEventListener('keydown', function(event) {
+    //   // Check if the 'Ctrl' key is pressed and the 'D' key is pressed
+    //   if (event.ctrlKey && event.key === 'd') {
+    //       event.preventDefault(); // Optional: Prevent the default action (e.g., bookmark shortcut)
+    //       console.log('Ctrl+D was pressed!');
+    //       utils.update_labels()
+    //   }
+    // });
+
+
     // Add an event listener for the 'keydown' event
     window.addEventListener('keydown', function(event) {
       // Check if the 'Ctrl' key is pressed and the 'D' key is pressed
       if (event.ctrlKey && event.key === 'd') {
           event.preventDefault(); // Optional: Prevent the default action (e.g., bookmark shortcut)
-          console.log('Ctrl+D was pressed!');
-          utils.update_labels()
+          console.log('Ctrl+d was pressed!');
+          utils.save_current_state()
       }
-    });
 
+      // Check if the 'Ctrl' key is pressed and the 'D' key is pressed
+      if (event.ctrlKey && event.key === 'm') {
+          event.preventDefault(); // Optional: Prevent the default action (e.g., bookmark shortcut)
+          console.log('Ctrl+m was pressed!');
+          utils.saveMinimapAsImage(minimap_renderer, minimap_camera)
+      }
+    
+    });
     ////
 
     // Listener for mousedown, specifically for right-click (button === 2)
@@ -148,6 +167,8 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
             rightClickMouseLocation = {x:event.clientX, y:event.clientY}
         }
     });
+
+
     
     // Listener for mouseup, specifically for right-click (button === 2)
     window.addEventListener('mouseup', function (event) {
@@ -156,8 +177,8 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
             const elapsedTime = rightClickEndTime - rightClickStartTime; // Calculate the elapsed time
             let elapsedDist = Math.sqrt((rightClickMouseLocation.x - event.clientX)**2 + (rightClickMouseLocation.y - event.clientY)**2)
             console.log("elapsedTime", elapsedTime, "elapsedDist", elapsedDist)
-            if ((elapsedTime < 220) && (elapsedDist<6)) { // Check if the time elapsed is less than threshold
-                console.log(hoveredObject)
+            if ((elapsedTime < 200) && (elapsedDist<2) && ((hovered_op && hovered_op.name!=="Root") || event.shiftKey)) {
+                console.log("hovered_op", hovered_op)
                 setContextMenu(
                   contextMenu === null ? { mouseX: event.clientX - 2, mouseY: event.clientY - 4, "current_op":hovered_op } : null
                 )
@@ -226,7 +247,9 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
     // Set up stats
     const stats = new Stats();
     stats.showPanel(0); // Show FPS panel
-    statsRef.current.appendChild(stats.dom);
+    if (globals.DEBUG) { // this could be cleaner. Just not appending if not in debug mode.
+      statsRef.current.appendChild(stats.dom);
+    }
 
     console.log(controls)
 
@@ -251,7 +274,7 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
         // boundingBox.max.z += pad_y
         boundingBox.min.z -= pad_y
 
-        let scene_h_width = (boundingBox.max.x - boundingBox.min.x) / 2 // for the entire scene, not the view windo
+        let scene_h_width = (boundingBox.max.x - boundingBox.min.x) / 2 // for the entire scene, not the view window
         let scene_h_height = (boundingBox.max.z - boundingBox.min.z) / 2
 
         // zoom
@@ -565,8 +588,10 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
 
     renderer.render(scene, camera); // necessary?
   }
+
   function expand_op(op){
     op.collapsed = false
+    // _expand_op_and_children(op)
     utils.mark_attr(op, "originating_position", {x:op.x, y:0, z:op.y})
     recompute_layout()
     draw_nn()
@@ -639,7 +664,7 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
 
         utils.populate_labels_pool()
 
-    
+        
         fetch(filters.selectedModelPath)
             .then(response => response.arrayBuffer())
             .then(arrayBuffer => {
@@ -673,11 +698,27 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
                 }
                 mark_parentage(nn)
 
+                globals.nodes_lookup = {}
                 function add_to_nodes_lookup(op) { // modules and ops
                   globals.nodes_lookup[op["node_id"]] = op
                   op.children.forEach(c => add_to_nodes_lookup(c))
                 }
                 add_to_nodes_lookup(nn)
+
+                //
+                globals.modules_lookup_by_identifier = {}
+                function add_to_mods_lookup(op) { // modules and ops
+                  if (op.node_type=="module") {
+                    if (op.mod_identifier in globals.modules_lookup_by_identifier) {
+                      console.log("duplicate mod identifier already in lookup? XXXXXXXXXXXXXXXXXXXXX shouldn't happen", op.mod_identifier)
+                      console.log("node_ids", globals.modules_lookup_by_identifier[op.mod_identifier]["node_id"], op["node_id"])
+                    } // TODO perf
+                    globals.modules_lookup_by_identifier[op.mod_identifier] = op
+                    op.children.forEach(c => add_to_mods_lookup(c))
+                  }
+                }
+                add_to_mods_lookup(nn)
+                //
 
                 // adding actual upstream nodes, for convenience. Not used currently.
                 console.time("linking upstream nodes")
@@ -687,7 +728,7 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
                 }
                 link_upstream_nodes(nn)
                 console.timeEnd("linking upstream nodes")
-                //
+
                 // set max depth, used for scales
                 globals.max_depth = 0
                 function set_max_depth(op) {
@@ -699,36 +740,51 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
                 set_max_depth(nn)
                 console.log("max depth ", globals.max_depth)
 
-                // Get default depth
-                console.time("calc default depth")
-                let depth_counter = {}
-                function count_n_nodes_at_depth_levels(op) {
-                    if (!(op.depth in depth_counter)) {
-                      depth_counter[op.depth] = 0
-                    }
-                    depth_counter[op.depth] += op.children.length
-                    op.children.forEach(c => count_n_nodes_at_depth_levels(c))
-                }
-                count_n_nodes_at_depth_levels(nn)
 
+                //////////////////////////////////////////
+                //
                 let default_depth = globals.max_depth
-                let max_default_nodes = 1600
-                let cumulative_nodes_shown = 0
-                for (let depth=0; depth<=globals.max_depth; depth++){
-                  let nodes_at_depth = depth_counter[depth]
-                  cumulative_nodes_shown += nodes_at_depth
-                  if (cumulative_nodes_shown>max_default_nodes) {
-                    default_depth = depth-1 // prev 
-                    break
-                  }
-                }
-                default_depth = Math.max(default_depth, 2)
-                console.log("default depth ", default_depth, "nodes at depths", depth_counter)
-                // init at collapsed depth
-                utils.mark_all_mods_past_depth_as_collapsed(default_depth) // returns, but don't need it now bc no transitions
 
-                // init w reshape ops collapsed
-                utils.mark_all_mods_of_family_as_collapsed(nn, "reshape*", []) // returns, but don't need it
+                if (nn.default_settings) {
+                    console.log("loading saved settings")
+                    utils.load_saved_settings(nn, nn.default_settings)
+                } else {
+                    // Get default depth
+                    console.log("no saved settings, calculating defaults")
+
+                    console.time("calc default depth")
+                    let depth_counter = {}
+                    function count_n_nodes_at_depth_levels(op) {
+                        if (!(op.depth in depth_counter)) {
+                          depth_counter[op.depth] = 0
+                        }
+                        depth_counter[op.depth] += op.children.length
+                        op.children.forEach(c => count_n_nodes_at_depth_levels(c))
+                    }
+                    count_n_nodes_at_depth_levels(nn)
+
+                    let max_default_nodes = 3200 //1600
+                    let cumulative_nodes_shown = 0
+                    for (let depth=0; depth<=globals.max_depth; depth++){
+                      let nodes_at_depth = depth_counter[depth]
+                      cumulative_nodes_shown += nodes_at_depth
+                      if (cumulative_nodes_shown>max_default_nodes) {
+                        default_depth = depth-1 // prev 
+                        break
+                      }
+                    }
+                    default_depth = Math.max(default_depth, 2)
+                    console.log("default depth ", default_depth, "nodes at depths", depth_counter)
+                    // init at collapsed depth
+                    utils.mark_all_mods_past_depth_as_collapsed(default_depth) // returns, but don't need it now bc no transitions
+
+                    // init w reshape ops collapsed
+                    utils.mark_all_mods_of_family_as_collapsed(nn, "reshape*", []) // returns, but don't need it
+                    
+                }
+
+                /////////////////////////////////////////////
+
 
                 recompute_layout()
                 draw_nn()
@@ -745,10 +801,19 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
                 scene.add(minimap_window)
 
                 // set camera to default
-                let CAMERA_DEFAULT_X = 12
-                let CAMERA_DEFAULT_Z = 4
+
+                // zoom
+                let pad = 3
+                let zz = (camera.top*.6) / (globals.scene_bb.hheight + pad) // first is percentage of height to fill, screen space; second is padding in scene space
+                zz = Math.min(30, zz)
+                // zoom to make scene fill space vertically, ie so top of scene is aligned w top of viewport and bottom same. 
+                // but w padding
+                // scene_bb set in recompute_layout
+
+                let CAMERA_DEFAULT_X = 500 / zz // desired screen space coords / zoom == scene space coords
+                let CAMERA_DEFAULT_Z = globals.scene_bb.hheight - (20 / zz) //  center vertically, then small shift downward in screen space
                 update_main_camera_position(CAMERA_DEFAULT_X, CAMERA_DEFAULT_Z)
-                let default_zoom = 20
+                let default_zoom = zz //20
                 camera.zoom = default_zoom
                 camera.updateProjectionMatrix()
 
@@ -871,13 +936,6 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
     utils.update_labels()
   }
 
-  let tooltip_attrs_list = ['node_id', "dist_from_end_originator_count", "dist_from_end_global", "respath_dist", 
-        "dist_from_start_originator_count", "dist_from_start_global",
-        "row_counter", "draw_order_row",
-        "mod_outputs", "input_group_ix", "input_group_sub_ix",
-        'n_ops', 'depth', 'input_shapes', 'output_shapes', 'is_output_global', 
-        "sparkflow", "params", "incremental_memory_usage", "max_memory_allocated", "latency", "n_params", "is_conditioning", "is_conditioning_upstream"]
-
   const render_menu_items = () => {
     if (contextMenu === null) return [<MenuItem></MenuItem>]
     if (contextMenu.current_op) {
@@ -936,32 +994,27 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
 
             <div ref={statsRef} style={{ zIndex: 2}} />
 
-
-            {tooltipObject && (
-              <Tooltip
-                open={Boolean(tooltipObject)}
-                title={
-                  <div style={{ lineHeight: '1.5', userSelect: 'none' }}>
-                    <div style={{ fontSize: '16px', fontWeight: 'bold' }}>{tooltipObject.name }</div>
-                    {
-                      tooltip_attrs_list.map((p,i) => {
-                        return <div key={i}>{p}: {String(tooltipObject[p])}</div>
-                    })
+            <div>
+              {tooltipObject && (
+                  <Tooltip
+                    open={Boolean(tooltipObject)}
+                    title={
+                      get_tooltip(tooltipObject)
                     }
-                  </div>
-                }
-                placement="top"
-                arrow
-                style={{
-                  position: 'absolute',
-                  left: tooltipPosition.left,
-                  top: tooltipPosition.top,
-                  pointerEvents: 'none',
-                }}
-              >
-                <div />
-              </Tooltip>
-            )}
+                    placement="top"
+                    arrow
+                    style={{
+                      position: 'absolute',
+                      left: tooltipPosition.left,
+                      top: tooltipPosition.top,
+                      pointerEvents: 'none',
+                    }}
+                  >
+                  </Tooltip>
+
+              )}
+            </div>
+
               <Menu
                 keepMounted
                 open={contextMenu !== null}
@@ -1010,4 +1063,105 @@ function collapse_to_depth(level) {
   })
   ops_to_expand.forEach(o => utils.mark_attr(o, "originating_position", undefined))
   ops_to_collapse.forEach(o => utils.mark_attr(o, "plane_was_at_this_position", undefined))
+}
+
+let debug_attrs_list = ['node_id', "dist_from_end_originator_count", "dist_from_end_global", "respath_dist", 
+    "dist_from_start_originator_count", "dist_from_start_global",
+    "row_counter", "draw_order_row",
+    "mod_outputs", "input_group_ix", "input_group_sub_ix",
+    'n_ops', 'depth', 'input_shapes', 'output_shapes', 'is_output_global', 
+    "sparkflow", "params", "incremental_memory_usage", "max_memory_allocated", "latency", "n_params", "is_conditioning", 
+    "is_conditioning_upstream", "mod_identifier"]
+
+let tensor_node_attrs = [
+  "shape",
+  "dtype",
+  // "numel",
+  "element_size",
+  "total_size",
+]
+
+let op_attrs_list = [
+  "latency",
+  "n_params",
+  "incremental_memory_usage",
+  "max_memory_allocated",
+  "input_shapes",
+  "output_shapes",
+]
+
+let formatting_lookup = {
+  "latency":utils.formatLatency,
+  "n_params":utils.formatNumParams,
+  "incremental_memory_usage":utils.formatMemorySize, // TODO isn't handling negatives. Also note that the values look wrong. 
+  "max_memory_allocated":utils.formatMemorySize,
+  "total_size":utils.formatMemorySize,
+  "element_size":utils.formatMemorySize,
+  "shape":formatShape,
+}
+function formatShape(shape) {
+    return `(${shape.join(", ")})`;
+}
+
+function color_dims(op) {
+  let shape = op.shape
+  let dim_types = op.dim_types
+  return (
+    <div style={{ fontSize: "22px" }}>
+      <span style={{ color: 'white' }}>(</span>
+      {
+        shape.map((s, index) => {
+          let color = utils.dim_color_lookup[dim_types[index]]
+          return <span key={index} style={{ color: color }}>
+                  {String(s)}
+                  {index < shape.length - 1 && ", "}
+                </span>
+        })
+      }
+      <span style={{ color: 'white' }}>)</span>
+    </div>
+  );
+}
+
+function get_tooltip_body(op) {
+  let attrs_list = op.is_tensor_node ? tensor_node_attrs : op_attrs_list
+  if (globals.DEBUG) attrs_list = debug_attrs_list;
+  return attrs_list.map((p,i) => {
+      let v = op[p]
+      if (Object.keys(formatting_lookup).includes(p)) {
+        v = formatting_lookup[p](v)
+      } 
+      v = String(v)
+      return <div style={{ fontSize: '14px' }} key={i}>{p}: {v}</div>
+  })
+}
+
+function get_tooltip_header(op) {
+  if (op.is_tensor_node) {
+    return "tensor"
+  } else {
+    return op.name
+  }
+}
+
+function get_tooltip(op) {
+  if (op.is_tensor_node) {
+    return <div style={{ lineHeight: '1.5', userSelect: 'none' }}>
+              <div style={{ fontSize: '22px', fontWeight: 'bold' }}>{get_tooltip_header(op)}</div>
+              {
+                // color_dims(op)
+              }
+              {
+                get_tooltip_body(op)
+              }
+          </div>
+  } else {
+    return <div style={{ lineHeight: '1.5', userSelect: 'none' }}>
+              <div style={{ fontSize: '22px', fontWeight: 'bold' }}>{get_tooltip_header(op)}</div>
+              {
+                get_tooltip_body(op)
+              }
+          </div>
+  }
+
 }
