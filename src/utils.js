@@ -1286,3 +1286,6 @@ export function saveMinimapAsImage(renderer, camera) {
     renderer.render(scene, camera);
 
   }
+
+export const transformers_str_w_emoji = '\u{1F917} Transformers';
+export const diffusers_str_w_emoji = '\u{1F917} Diffusers';

@@ -7,6 +7,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { getAuth, signInWithPopup, GoogleAuthProvider, GithubAuthProvider, onAuthStateChanged, signOut } from 'firebase/auth';
 import ModelList from './ModelList'; 
+import * as utils from './utils'
 
 const LandingPage = () => {
   const [modelOptions, setModelOptions] = useState([]);
@@ -69,14 +70,11 @@ const LandingPage = () => {
       .then((response) => response.json())
       .then((data) => {
         let data_as_array = Object.keys(data).map((model_name) => data[model_name]);
-
-        const transformers_str_w_emoji = '\u{1F917} Transformers';
-        const diffusers_str_w_emoji = '\u{1F917} Diffusers';
         
         data_as_array.forEach((d) => {
           d.library = d?.trace_metadata?.library ?? "none";
-          d.library = d.library === "transformers" ? transformers_str_w_emoji : d.library;
-          d.library = d.library === "diffusers" ? diffusers_str_w_emoji : d.library;
+          d.library = d.library === "transformers" ? utils.transformers_str_w_emoji : d.library;
+          d.library = d.library === "diffusers" ? utils.diffusers_str_w_emoji : d.library;
         });
 
         data_as_array.sort((a, b) => {

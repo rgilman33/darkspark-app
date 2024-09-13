@@ -201,6 +201,7 @@ export default function recompute_layout() {
         op.children.forEach(o => {
             o.x_nudge_traversed = false
             o.x_relative = -P
+            o.y_relative = 0
             o.x_relative_fully_marked = false
         })
 
@@ -714,7 +715,7 @@ export default function recompute_layout() {
         op.w = Math.max(...op.children.map(c => c.x_relative+c.w))
         op.h = Math.max(...op.children.map(c => c.y_relative+c.h))
 
-        console.log("op hw", op.name, op.node_id, op.h, op.w)
+        // console.log("op hw", op.name, op.node_id, op.h, op.w)
     }
     update_op_h_w(nn)
 

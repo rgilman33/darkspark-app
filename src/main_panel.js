@@ -251,8 +251,6 @@ const MainPanel = ({ filters, setDropdownValue, setDepthValues, setOverviewStats
       statsRef.current.appendChild(stats.dom);
     }
 
-    console.log(controls)
-
     
     //////////////////////////////////////////////////
     // Minimap
@@ -1086,8 +1084,8 @@ let op_attrs_list = [
   "n_params",
   "incremental_memory_usage",
   "max_memory_allocated",
-  "input_shapes",
-  "output_shapes",
+  // "input_shapes",
+  // "output_shapes",
 ]
 
 let formatting_lookup = {
@@ -1123,6 +1121,8 @@ function color_dims(op) {
   );
 }
 
+// TODO put in fn_metadata
+
 function get_tooltip_body(op) {
   let attrs_list = op.is_tensor_node ? tensor_node_attrs : op_attrs_list
   if (globals.DEBUG) attrs_list = debug_attrs_list;
@@ -1135,6 +1135,19 @@ function get_tooltip_body(op) {
       return <div style={{ fontSize: '14px' }} key={i}>{p}: {v}</div>
   })
 }
+function get_fn_metadata_body(op) {
+  if (op.fn_metadata) {
+    return Object.keys(op.fn_metadata).map((p,i) => {
+      let v = op.fn_metadata[p]
+      if (Object.keys(formatting_lookup).includes(p)) {
+        v = formatting_lookup[p](v)
+      } 
+      v = String(v)
+      return <div style={{ fontSize: '14px' }} key={i}>{p}: {v}</div>
+  })
+  }
+}
+
 
 function get_tooltip_header(op) {
   if (op.is_tensor_node) {
@@ -1158,6 +1171,9 @@ function get_tooltip(op) {
   } else {
     return <div style={{ lineHeight: '1.5', userSelect: 'none' }}>
               <div style={{ fontSize: '22px', fontWeight: 'bold' }}>{get_tooltip_header(op)}</div>
+              {
+                get_fn_metadata_body(op)
+              }
               {
                 get_tooltip_body(op)
               }

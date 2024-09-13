@@ -7,7 +7,10 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 import { styled, lighten, darken } from '@mui/system';
 
-import { createTheme } from '@mui/material/styles';
+import { Link } from 'react-router-dom';
+import HomeIcon from '@mui/icons-material/Home';
+import Tooltip from '@mui/material/Tooltip';
+import IconButton from '@mui/material/IconButton';
 
 
 const GroupHeader = styled('div')(({ theme }) => ({
@@ -111,7 +114,7 @@ const Sidebar = ({ onFilterChange, setDropdownValue, dropdownValue, depthValues,
               onMouseEnter={handleMouseEnter}
               onMouseLeave={handleMouseLeave}
             >
-
+               
                 <Autocomplete id="model" 
                     // value={modelOptions.filter(d => d.name===selectedModel)[0]} 
                     // isOptionEqualToValue={(option, value) => option.label === value}
@@ -144,6 +147,14 @@ const Sidebar = ({ onFilterChange, setDropdownValue, dropdownValue, depthValues,
                     </select>
                 </div>
                 
+                {/* Home Icon with Tooltip */}
+                {/* <Tooltip title="Return to DarkSpark Home" arrow>
+                  <IconButton component={Link} to="/" aria-label="return to home">
+                    <HomeIcon />
+                  </IconButton>
+                </Tooltip> */}
+
+
                 <div className="sidebar-handle">
                     <i className="fas fa-bars"></i>
                 </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Typography, TextField, Chip, Card, CardContent, CardMedia, Grid } from '@mui/material';
 import { FixedSizeList } from 'react-window'; // For virtualization
+import * as utils from './utils'
 
 const ModelList = ({ modelOptions }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -96,7 +97,7 @@ const ModelList = ({ modelOptions }) => {
         Explore pre-traced models
       </Typography>
       <Typography variant="subtitle1" gutterBottom>
-        timm, HF Transformers, HF Diffusers, Torchvision, and more
+        timm, {utils.transformers_str_w_emoji}, {utils.diffusers_str_w_emoji}, Torchvision, and more
       </Typography>
 
       {/* Search Field */}
